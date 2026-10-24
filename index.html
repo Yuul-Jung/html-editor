@@ -83,6 +83,15 @@
       width: 100% !important;
       border: none;
     }
+    /* Visual document editor keeps the original HTML layout while editing its visible body. */
+    body.visual-mode #editorPanel, body.visual-mode #splitResizer { display:none !important; }
+    body.visual-mode #previewPanel { width:100% !important; height:100% !important; min-width:0; }
+    #visualToolbar button { min-width:32px; min-height:32px; border-radius:5px; padding:4px 8px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; }
+    #visualToolbar button:hover {background:#ede9fe;border-color:#a5b4fc;}
+    #visualToolbar button:disabled {opacity:.4;cursor:not-allowed;}
+    #visualToolbar .visual-sep {width:1px; height:26px; background:#cbd5e1;margin:0 3px;}
+    body.visual-mode #visualToggleBtn {background:#4338ca;color:#fff;}
+    #visualToolbar .visual-label {font-size:11px;color:#334155;white-space:nowrap;}
     /* Custom Resizer Drag Handle */
     .resizer {
       position: relative;
@@ -351,6 +360,7 @@
         </div>
 
         <div class="flex items-center gap-2">
+          <button id="visualToggleBtn" title="화면에서 직접 글자와 사진을 편집" class="border border-indigo-400 rounded px-2 py-1 bg-indigo-50 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-100 text-[11px] font-semibold"><i class="fa-solid fa-pen-to-square mr-1"></i><span id="visualToggleLabel">워드 편집</span></button>
           <!-- Status Indicator Dot -->
           <div class="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -366,6 +376,35 @@
             <span id="consoleBadge" class="hidden px-1.5 py-0.2 rounded-full text-[10px] bg-red-500 text-white font-bold">0</span>
           </button>
         </div>
+      </div>
+
+      <!-- WYSIWYG toolbar: commands target the sandboxed preview through postMessage. -->
+      <div id="visualToolbar" class="hidden shrink-0 border-b border-gray-300 bg-indigo-50 dark:bg-slate-200 px-3 py-2">
+        <div class="flex items-center flex-wrap gap-1.5">
+          <span class="visual-label font-bold mr-2">문서 편집</span>
+          <button data-visual-cmd="bold" title="굵게 (Ctrl+B)"><b>B</b></button>
+          <button data-visual-cmd="italic" title="기울임"><i>I</i></button>
+          <button data-visual-cmd="underline" title="밑줄"><u>U</u></button>
+          <span class="visual-sep"></span>
+          <button data-visual-cmd="formatBlock" data-visual-value="p" title="일반 문단">본문</button>
+          <button data-visual-cmd="formatBlock" data-visual-value="h2" title="제목 2">제목</button>
+          <button data-visual-cmd="insertUnorderedList" title="글머리표">• 목록</button>
+          <button data-visual-cmd="insertOrderedList" title="번호 목록">1. 목록</button>
+          <span class="visual-sep"></span>
+          <button data-visual-cmd="justifyLeft" title="왼쪽 정렬"><i class="fa-solid fa-align-left"></i></button>
+          <button data-visual-cmd="justifyCenter" title="가운데 정렬"><i class="fa-solid fa-align-center"></i></button>
+          <button data-visual-cmd="justifyRight" title="오른쪽 정렬"><i class="fa-solid fa-align-right"></i></button>
+          <label class="visual-label flex gap-1 items-center">글자색 <input id="visualColor" type="color" value="#111827" class="w-7 h-7 p-0 cursor-pointer" title="글자 색상"/></label>
+          <button id="visualLinkBtn" title="선택한 텍스트에 링크">🔗 링크</button>
+          <span class="visual-sep"></span>
+          <button id="visualImageBtn" title="컴퓨터 이미지 삽입">🖼️ 그림 넣기</button>
+          <input type="file" id="visualImageInput" accept="image/*" class="hidden"/>
+          <button data-visual-cmd="imageWidth" data-visual-value="50" title="선택된 그림 너비 50%">그림 50%</button>
+          <button data-visual-cmd="imageWidth" data-visual-value="100" title="선택된 그림 너비 100%">그림 100%</button>
+          <button data-visual-cmd="undo" title="되돌리기"><i class="fa-solid fa-rotate-left"></i></button>
+          <button data-visual-cmd="redo" title="다시 실행"><i class="fa-solid fa-rotate-right"></i></button>
+        </div>
+        <div class="text-[11px] mt-1 text-indigo-900 dark:text-slate-800">문서 내용을 클릭하고 입력 · Ctrl+V로 글/그림 붙여넣기 · 그림 클릭 후 크기 조정 · GitHub 저장으로 게시</div>
       </div>
 
       <!-- Live Preview Render Wrapper (Supports Device Emulation Frame) -->
@@ -958,6 +997,10 @@ console.log('캔버스 입자 애니메이션 시작됨');`
     let renderDebounceTimer = null;
     let consoleErrorCount = 0;
     let activePreviewUrl = null;
+    let visualMode = false;
+    let visualSyncFromFrame = false;
+    let visualMirrorTimer = null;
+    let visualFlushResolve = null;
 
     // DOM Elements
     const previewIframe = document.getElementById('previewIframe');
@@ -1173,17 +1216,52 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       history.replaceState(null, '', link.toString());
     }
 
+    async function ghUploadEmbeddedImages(html) {
+      const matches = [...new Set(html.match(/data:image\/(?:png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+/gi) || [])];
+      if (!matches.length) return html;
+      if (matches.length > 30) throw new Error('한 번에 저장할 수 있는 새 이미지 수는 30개입니다.');
+      const prefix = gitState.path.split('/').slice(0, -1).join('/');
+      const repoAPI = '/repos/' + gitState.repo.split('/').map(encodeURIComponent).join('/');
+      for (let i = 0; i < matches.length; i++) {
+        const data = matches[i];
+        const m = /^data:image\/(png|jpe?g|webp|gif);base64,/i.exec(data);
+        const extension = m[1].toLowerCase() === 'jpeg' || m[1].toLowerCase() === 'jpg' ? 'jpg' : m[1].toLowerCase();
+        const encoded = data.slice(m[0].length);
+        if (encoded.length > 12 * 1024 * 1024) throw new Error('압축 후에도 너무 큰 이미지가 있습니다.');
+        const fileName = 'picture-' + Date.now().toString(36) + '-' + i + '-' +
+          Math.random().toString(36).slice(2, 10) + '.' + extension;
+        const relativePath = 'assets/editor-images/' + fileName;
+        const targetPath = (prefix ? prefix + '/' : '') + relativePath;
+        ghSetStatus('그림을 GitHub에 업로드 중... (' + (i + 1) + '/' + matches.length + ')');
+        await ghApi(repoAPI + '/contents/' + ghEncodePath(targetPath), {
+          method: 'PUT',
+          body: JSON.stringify({
+            message: 'Add pasted image ' + fileName,
+            content: encoded,
+            branch: gitState.branch
+          })
+        });
+        html = html.split(data).join(relativePath);
+      }
+      return html;
+    }
+
     async function ghSaveFile() {
       if (!gitState.repo || !gitState.path || !gitState.sha) throw new Error('열려 있는 GitHub HTML 파일이 없습니다.');
       if (!gitState.token) throw new Error('저장하려면 읽기/쓰기 권한이 있는 GitHub 개인 접근 토큰을 입력하세요.');
       if (gitState.busy) return;
-      const content = ghBuildDocument();
+      if (visualMode) {
+        await visualFlush();
+        visualSyncCodeNow();
+      }
+      let content = ghBuildDocument();
       if (content === gitState.loadedHtml) return ghSetStatus('변경된 내용이 없습니다.');
       if (!confirm('다음 저장소와 브랜치에 수정한 HTML을 커밋합니다.\n\n' +
           gitState.repo + ' (' + gitState.branch + ')\n' + gitState.path + '\n\n계속할까요?')) return;
       gitState.busy = true;
       ghUpdateButtons();
       try {
+        content = await ghUploadEmbeddedImages(content);
         const endpoint = '/repos/' + gitState.repo.split('/').map(encodeURIComponent).join('/') +
           '/contents/' + ghEncodePath(gitState.path);
         const message = ghById('ghCommitMessage').value.trim() || 'Update ' + gitState.path + ' via web editor';
@@ -1195,7 +1273,9 @@ console.log('캔버스 입자 애니메이션 시작됨');`
         // Keep the HTML tab synchronized with content committed after merging optional CSS/JS.
         if (currentTab !== 'html') switchTab('html');
         codeState = {html: content, css: '', js: ''};
-        editor.setValue(codeState.html);
+        visualSyncFromFrame = true;
+        try { editor.setValue(codeState.html); } finally { visualSyncFromFrame = false; }
+        updatePreview();
         ghSetStatus('GitHub 커밋 완료: ' + result.commit.sha.slice(0, 12) + ' · Pages 반영에는 시간이 걸릴 수 있습니다.');
       } finally {
         gitState.busy = false;
@@ -1280,6 +1360,103 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       ghUpdateButtons();
     }
 
+    // WYSIWYG (위지위그): edit the rendered body without rewriting original head and CSS.
+    function visualSyncCodeNow() {
+      clearTimeout(visualMirrorTimer);
+      if (!editor || currentTab !== 'html' || editor.getValue() === codeState.html) return;
+      visualSyncFromFrame = true;
+      try { editor.setValue(codeState.html); } finally { visualSyncFromFrame = false; }
+    }
+
+    function visualUpdateBody(innerHtml) {
+      if (!visualMode || typeof innerHtml !== 'string') return;
+      const source = codeState.html;
+      const bodyOpen = /<body\b[^>]*>/i.exec(source);
+      const bodyClose = source.toLowerCase().lastIndexOf('</body>');
+      if (!bodyOpen || bodyClose <= bodyOpen.index) {
+        syncStatusText.textContent = '본문 태그를 찾지 못했습니다.';
+        return;
+      }
+      const insertAt = bodyOpen.index + bodyOpen[0].length;
+      codeState.html = source.slice(0, insertAt) + '\n' + innerHtml + '\n' + source.slice(bodyClose);
+      syncStatusText.textContent = '문서 편집 반영됨';
+      ghUpdateButtons();
+      clearTimeout(visualMirrorTimer);
+      visualMirrorTimer = setTimeout(visualSyncCodeNow, 320);
+    }
+
+    function visualPost(command, value) {
+      if (!visualMode || !previewIframe.contentWindow) return;
+      previewIframe.contentWindow.postMessage({type: 'VISUAL_COMMAND', command, value}, '*');
+    }
+
+    function visualFlush() {
+      if (!visualMode || !previewIframe.contentWindow) return Promise.resolve();
+      return new Promise(resolve => {
+        const oldResolve = visualFlushResolve;
+        if (oldResolve) oldResolve();
+        visualFlushResolve = resolve;
+        previewIframe.contentWindow.postMessage({type:'VISUAL_FLUSH'}, '*');
+        setTimeout(() => {
+          if (visualFlushResolve === resolve) { visualFlushResolve = null; resolve(); }
+        }, 1200);
+      });
+    }
+
+    async function visualToggle() {
+      if (visualMode) {
+        await visualFlush();
+        visualSyncCodeNow();
+        visualMode = false;
+        document.body.classList.remove('visual-mode');
+        ghById('visualToolbar').classList.add('hidden');
+        ghById('visualToggleLabel').textContent = '워드 편집';
+        updatePreview();
+        return;
+      }
+      if (currentTab !== 'html') switchTab('html');
+      const merged = ghBuildDocument();
+      if (!/<body\b[^>]*>/i.test(merged) || !/<\/body\s*>/i.test(merged)) {
+        alert('워드 편집 모드는 <body>와 </body>가 있는 HTML 문서에서 사용할 수 있습니다.');
+        return;
+      }
+      codeState = {html: merged, css:'', js:''};
+      visualSyncCodeNow();
+      clearTimeout(renderDebounceTimer);
+      visualMode = true;
+      document.body.classList.add('visual-mode');
+      ghById('visualToolbar').classList.remove('hidden');
+      ghById('visualToggleLabel').textContent = '코드 편집';
+      updatePreview();
+    }
+
+    function visualSetupUI() {
+      ghById('visualToggleBtn').addEventListener('click', () =>
+        visualToggle().catch(err => { alert(err.message); }));
+      ghById('visualToolbar').querySelectorAll('[data-visual-cmd]').forEach(btn => {
+        btn.addEventListener('click', () => visualPost(btn.dataset.visualCmd, btn.dataset.visualValue || ''));
+      });
+      ghById('visualColor').addEventListener('input', e => visualPost('foreColor', e.target.value));
+      ghById('visualLinkBtn').addEventListener('click', () => {
+        const url = prompt('선택한 글자에 연결할 URL을 입력하세요 (https://...):');
+        if (url === null) return;
+        if (!/^https?:\/\//i.test(url)) return alert('http:// 또는 https:// 주소만 사용할 수 있습니다.');
+        visualPost('createLink', url);
+      });
+      const input = ghById('visualImageInput');
+      ghById('visualImageBtn').addEventListener('click', () => input.click());
+      input.addEventListener('change', () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) return alert('그림 파일만 선택할 수 있습니다.');
+        if (file.size > 20 * 1024 * 1024) return alert('20MB를 넘는 이미지는 삽입할 수 없습니다.');
+        const reader = new FileReader();
+        reader.onload = () => visualPost('insertImage', reader.result);
+        reader.readAsDataURL(file);
+        input.value = '';
+      });
+    }
+
     // Initialize CodeMirror Editor
     function initEditor() {
       editor = CodeMirror.fromTextArea(document.getElementById('codeEditorArea'), {
@@ -1299,6 +1476,7 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       // Change Handler
       editor.on('change', () => {
         codeState[currentTab] = editor.getValue();
+        if (visualSyncFromFrame) { updateFileMetrics(); ghUpdateButtons(); return; }
         updateFileMetrics();
         ghUpdateButtons();
         if (autoSync) {
@@ -1415,6 +1593,9 @@ console.log('캔버스 입자 애니메이션 시작됨');`
 
       // Construct Unified Document Bundle
       let htmlContent = codeState.html || '';
+      // A separate bridge script runs only inside the isolated WYSIWYG preview.
+      const visualBridgeSrc = new URL('visual-bridge.js', window.location.href).href;
+      const visualBridge = visualMode ? '<script src="' + visualBridgeSrc + '"><\/script>' : '';
 
       // Resolve image/style resources relative to the GitHub repository, without changing the source HTML.
       let sourceBase = '';
@@ -1435,11 +1616,11 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       <\/script>` : '';
       const head = /<head(?:\s[^>]*)?>/i;
       htmlContent = head.test(htmlContent)
-        ? htmlContent.replace(head, m => m + baseTag + consoleOverride + fixAnchors)
-        : baseTag + consoleOverride + fixAnchors + htmlContent;
+        ? htmlContent.replace(head, m => m + baseTag + consoleOverride + fixAnchors + visualBridge)
+        : baseTag + consoleOverride + fixAnchors + visualBridge + htmlContent;
 
       // Inject custom CSS
-      const injectedCss = `<style>\n${codeState.css}\n</style>`;
+      const injectedCss = codeState.css.trim() ? `<style>\n${codeState.css}\n</style>` : '';
       if (htmlContent.includes('</head>')) {
         htmlContent = htmlContent.replace('</head>', `${injectedCss}\n</head>`);
       } else {
@@ -1447,7 +1628,7 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       }
 
       // Inject custom JS
-      const injectedJs = `<script>\n${codeState.js}\n<\/script>`;
+      const injectedJs = codeState.js.trim() ? `<script>\n${codeState.js}\n<\/script>` : '';
       if (htmlContent.includes('</body>')) {
         htmlContent = htmlContent.replace('</body>', `${injectedJs}\n</body>`);
       } else {
@@ -1511,6 +1692,18 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       if (e.source !== previewIframe.contentWindow && e.source !== fullscreenIframe.contentWindow) return;
       if (e.data && e.data.type === 'LIVE_CONSOLE') {
         appendConsoleLog(e.data.level, e.data.message);
+      } else if (e.data && e.data.type === 'VISUAL_BODY') {
+        visualUpdateBody(e.data.html);
+      } else if (e.data && e.data.type === 'VISUAL_FLUSHED') {
+        visualSyncCodeNow();
+        if (visualFlushResolve) {
+          const done = visualFlushResolve;
+          visualFlushResolve = null;
+          done();
+        }
+      } else if (e.data && e.data.type === 'VISUAL_NOTICE') {
+        syncStatusText.textContent = e.data.text || '문서 편집 중';
+        if (e.data.error) alert(e.data.text);
       }
     });
 
@@ -1911,6 +2104,7 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       initEditor();
       setupEventListeners();
       ghSetupUI();
+      visualSetupUI();
       updatePreview();
     });
   </script>
