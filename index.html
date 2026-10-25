@@ -1044,6 +1044,7 @@ console.log('캔버스 입자 애니메이션 시작됨');`
     let consoleErrorCount = 0;
     let activePreviewUrl = null;
     let visualMode = false;
+    let visualReady = false;
     let visualSyncFromFrame = false;
     let visualMirrorTimer = null;
     let visualFlushResolve = null;
@@ -1335,8 +1336,13 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       }
       if (gitState.busy) return;
       if (visualMode) {
-        await visualFlush();
-        visualSyncCodeNow();
+        try {
+          await visualFlush();
+          visualSyncCodeNow();
+        } catch (error) {
+          ghSaveError(error);
+          return;
+        }
       }
       let content = ghBuildDocument();
       if (content === gitState.loadedHtml) {
@@ -1499,22 +1505,34 @@ console.log('캔버스 입자 애니메이션 시작됨');`
     }
 
     function visualFlush() {
-      if (!visualMode || !previewIframe.contentWindow) return Promise.resolve();
-      return new Promise(resolve => {
-        const oldResolve = visualFlushResolve;
-        if (oldResolve) oldResolve();
+      if (!visualMode) return Promise.resolve();
+      if (!visualReady || !previewIframe.contentWindow) {
+        return Promise.reject(new Error('워드 편집 화면이 아직 준비되지 않았습니다. 편집 내용을 확인한 다음 저장하세요.'));
+      }
+      return new Promise((resolve, reject) => {
+        if (visualFlushResolve) {
+          visualFlushResolve();
+          visualFlushResolve = null;
+        }
         visualFlushResolve = resolve;
         previewIframe.contentWindow.postMessage({type:'VISUAL_FLUSH'}, '*');
         setTimeout(() => {
-          if (visualFlushResolve === resolve) { visualFlushResolve = null; resolve(); }
-        }, 1200);
+          if (visualFlushResolve === resolve) {
+            visualFlushResolve = null;
+            reject(new Error('편집 내용 동기화에 실패했습니다. 수정 내용이 누락될 수 있으므로 저장하지 않았습니다. [코드 편집]에서 내용을 확인하세요.'));
+          }
+        }, 2500);
       });
     }
 
     async function visualToggle() {
       if (visualMode) {
-        await visualFlush();
-        visualSyncCodeNow();
+        if (visualReady) {
+          await visualFlush();
+          visualSyncCodeNow();
+        } else {
+          ghFeedback('워드 편집이 준비되지 않았습니다. [코드 편집]에서 HTML 소스를 확인하세요.', 'error');
+        }
         visualMode = false;
         document.body.classList.remove('visual-mode');
         ghById('visualToolbar').classList.add('hidden');
@@ -1757,6 +1775,8 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       }
 
       // Render in Iframe
+      visualReady = false;
+      if (visualMode) syncStatusText.textContent = '워드 편집 준비 중...';
       const blob = new Blob([htmlContent], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       if (activePreviewUrl) URL.revokeObjectURL(activePreviewUrl);
@@ -1813,6 +1833,9 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       if (e.source !== previewIframe.contentWindow && e.source !== fullscreenIframe.contentWindow) return;
       if (e.data && e.data.type === 'LIVE_CONSOLE') {
         appendConsoleLog(e.data.level, e.data.message);
+      } else if (e.data && e.data.type === 'VISUAL_READY') {
+        visualReady = true;
+        syncStatusText.textContent = '워드 편집 준비 완료';
       } else if (e.data && e.data.type === 'VISUAL_BODY') {
         visualUpdateBody(e.data.html);
       } else if (e.data && e.data.type === 'VISUAL_FLUSHED') {
