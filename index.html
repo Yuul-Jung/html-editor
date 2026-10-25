@@ -1246,7 +1246,16 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       codeState = {html, css: '', js: ''};
       editor.setValue(codeState.html);
       editor.clearHistory();
-      updatePreview();
+      // Existing HTML documents open in Word-like visual mode by default.
+      if (visualMode) {
+        visualMode = false;
+        document.body.classList.remove('visual-mode');
+        ghById('visualToolbar').classList.add('hidden');
+        ghById('visualToggleLabel').textContent = '워드 편집';
+      }
+      if (/<body\b[^>]*>/i.test(html) && /<\/body\s*>/i.test(html)) {
+        await visualToggle();
+      } else updatePreview();
       ghUpdateButtons();
       ghSetStatus('열기 완료: ' + gitState.repo + '/' + path + ' · ' + gitState.branch);
       ghById('ghModal').classList.add('hidden');
