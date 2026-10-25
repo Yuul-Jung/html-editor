@@ -41,7 +41,8 @@
   function activeCell() {
     if (selectedCell?.isConnected) return selectedCell;
     const node = savedRange?.startContainer;
-    return (node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement)?.closest?.('td,th') || null;
+    const found = (node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement)?.closest?.('td,th');
+    return found?.isConnected ? found : null;
   }
   function updateContext(cell) {
     selectedCell = cell || null;
@@ -151,18 +152,22 @@
     sendBody();
   }
   function insertBox(kind) {
+    const range = savedRange && !savedRange.collapsed ? savedRange : null;
+    const holder = document.createElement('div');
+    if (range) holder.appendChild(range.cloneContents());
+    const chosen = holder.innerHTML.trim();
     const common = 'padding:16px;margin:16px 0;border-radius:10px;';
     const html = kind === 'twoCols'
       ? '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin:16px 0;">' +
-        '<div style="border:1px solid #cbd5e1;border-radius:8px;padding:16px;"><p>왼쪽 내용을 입력하세요.</p></div>' +
+        '<div style="border:1px solid #cbd5e1;border-radius:8px;padding:16px;">' + (chosen || '<p>왼쪽 내용을 입력하세요.</p>') + '</div>' +
         '<div style="border:1px solid #cbd5e1;border-radius:8px;padding:16px;"><p>오른쪽 내용을 입력하세요.</p></div></div>'
       : kind === 'callout'
       ? '<aside style="' + common + 'background:#f0f5ff;border-left:4px solid #6366f1;">' +
-        '<p><strong>💡 핵심 내용</strong></p><p>내용을 입력하세요.</p></aside>'
+        '<p><strong>💡 핵심 내용</strong></p>' + (chosen || '<p>내용을 입력하세요.</p>') + '</aside>'
       : kind === 'divider'
       ? '<hr style="border:0;border-top:1px solid #cbd5e1;margin:24px 0;">'
       : '<section style="' + common + 'border:1px solid #cbd5e1;background:#fff;">' +
-        '<p><strong>제목</strong></p><p>내용을 입력하세요.</p></section>';
+        '<p><strong>제목</strong></p>' + (chosen || '<p>내용을 입력하세요.</p>') + '</section>';
     insertNodeHTML(html);
   }
   function editTable(action, value) {
