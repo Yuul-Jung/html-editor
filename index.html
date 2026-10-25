@@ -1733,7 +1733,7 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       // Construct Unified Document Bundle
       let htmlContent = codeState.html || '';
       // A separate bridge script runs only inside the isolated WYSIWYG preview.
-      const visualBridgeSrc = new URL('visual-bridge.js', window.location.href).href;
+      const visualBridgeSrc = new URL('visual-bridge.js?v=20261025-syncfix', window.location.href).href;
       const visualBridge = visualMode ? '<script src="' + visualBridgeSrc + '"><\/script>' : '';
 
       // Resolve image/style resources relative to the GitHub repository, without changing the source HTML.
