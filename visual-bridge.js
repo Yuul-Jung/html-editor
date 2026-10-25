@@ -320,6 +320,7 @@
       if (image) {event.preventDefault(); rememberSelection(); addFile(image);}
     });
 
+    send('VISUAL_READY');
     send('VISUAL_NOTICE', {text:'워드 편집 준비 완료 — 본문을 클릭하여 글을 입력하거나 그림을 붙여넣으세요.'});
   }
 
