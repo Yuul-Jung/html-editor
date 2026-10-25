@@ -86,6 +86,24 @@
     /* Visual document editor keeps the original HTML layout while editing its visible body. */
     body.visual-mode #editorPanel, body.visual-mode #splitResizer { display:none !important; }
     body.visual-mode #previewPanel { width:100% !important; height:100% !important; min-width:0; }
+    body.visual-mode #consoleDrawer { display:none !important; }
+    body.visual-mode #previewFrameContainer {box-shadow:none; border-radius:0;}
+    body.visual-mode #browserMockupHeader {display:none;}
+    #visualToolbar {max-height:37vh; overflow-y:auto;}
+    #visualToolbar details {margin-top:6px;border:1px solid #cbd5e1;border-radius:7px;padding:5px 9px;background:rgba(255,255,255,.75);}
+    #visualToolbar summary {cursor:pointer;font-size:12px;color:#1e293b;font-weight:700;user-select:none;}
+    #visualToolbar .visual-context {font-size:11px;color:#475569;padding:3px 0;}
+    #visualToolbar button:focus-visible {outline:2px solid #6366f1;}
+    @media(max-width:767px) {
+      #visualToolbar {max-height:32vh;padding:6px 8px;}
+      #visualToolbar button {min-height:38px;min-width:38px;font-size:12px;}
+      #previewPanel > .h-10 {padding:0 6px;gap:2px;}
+      body.visual-mode #previewFrameContainer {width:100%!important;}
+      body.visual-mode #previewPanel > div.flex-1 {padding:0;}
+      body.visual-mode #previewDeviceResolution {display:none;}
+      body.visual-mode #toggleConsoleBtn {display:none;}
+      body.visual-mode #syncStatusText {max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+    }
     #visualToolbar button { min-width:32px; min-height:32px; border-radius:5px; padding:4px 8px; border:1px solid #cbd5e1; background:#fff; color:#1e293b; }
     #visualToolbar button:hover {background:#ede9fe;border-color:#a5b4fc;}
     #visualToolbar button:disabled {opacity:.4;cursor:not-allowed;}
@@ -401,10 +419,33 @@
           <input type="file" id="visualImageInput" accept="image/*" class="hidden"/>
           <button data-visual-cmd="imageWidth" data-visual-value="50" title="선택된 그림 너비 50%">그림 50%</button>
           <button data-visual-cmd="imageWidth" data-visual-value="100" title="선택된 그림 너비 100%">그림 100%</button>
+          <button id="visualInsertTableBtn" title="새 표 삽입">▦ 표 삽입</button>
+          <button data-visual-cmd="insertBox" data-visual-value="box" title="테두리 있는 박스 삽입">□ 박스</button>
+          <button data-visual-cmd="insertBox" data-visual-value="twoCols" title="반응형 2단 레이아웃 삽입">▤ 2단</button>
+          <button data-visual-cmd="insertBox" data-visual-value="callout" title="강조 안내 박스 삽입">💡 강조</button>
+          <button data-visual-cmd="insertBox" data-visual-value="divider" title="구분선">―</button>
           <button data-visual-cmd="undo" title="되돌리기"><i class="fa-solid fa-rotate-left"></i></button>
           <button data-visual-cmd="redo" title="다시 실행"><i class="fa-solid fa-rotate-right"></i></button>
         </div>
-        <div class="text-[11px] mt-1 text-indigo-900 dark:text-slate-800">문서 내용을 클릭하고 입력 · Ctrl+V로 글/그림 붙여넣기 · 그림 클릭 후 크기 조정 · GitHub 저장으로 게시</div>
+        <details id="visualTableTools">
+          <summary>▦ 표 편집 도구 · <span id="visualTableSelection" class="font-normal">표의 셀을 클릭하면 행·열·셀 도구가 활성화됩니다</span></summary>
+          <div class="flex gap-1.5 flex-wrap items-center mt-2">
+            <button data-visual-table-action="addRowBefore" disabled>행 ↑ 추가</button>
+            <button data-visual-table-action="addRowAfter" disabled>행 ↓ 추가</button>
+            <button data-visual-table-action="deleteRow" disabled>행 삭제</button>
+            <span class="visual-sep"></span>
+            <button data-visual-table-action="addColBefore" disabled>열 ← 추가</button>
+            <button data-visual-table-action="addColAfter" disabled>열 → 추가</button>
+            <button data-visual-table-action="deleteCol" disabled>열 삭제</button>
+            <span class="visual-sep"></span>
+            <button data-visual-table-action="mergeRight" disabled>오른쪽 셀 병합</button>
+            <button data-visual-table-action="splitCell" disabled>셀 분할</button>
+            <label class="visual-label flex items-center gap-1">셀 색 <input id="visualCellColor" type="color" value="#f1f5f9" class="w-7 h-7" disabled></label>
+            <button data-visual-table-action="tableBorders" disabled>테두리 표시</button>
+            <button data-visual-table-action="deleteTable" disabled class="!text-red-700">표 전체 삭제</button>
+          </div>
+        </details>
+        <div class="text-[11px] mt-1 text-indigo-900 dark:text-slate-800">화면을 클릭하여 직접 수정 · 표는 셀 클릭 후 행/열 편집 · 사진/문서 붙여넣기 · GitHub 저장으로 커밋</div>
       </div>
 
       <!-- Live Preview Render Wrapper (Supports Device Emulation Frame) -->
@@ -1437,6 +1478,16 @@ console.log('캔버스 입자 애니메이션 시작됨');`
         btn.addEventListener('click', () => visualPost(btn.dataset.visualCmd, btn.dataset.visualValue || ''));
       });
       ghById('visualColor').addEventListener('input', e => visualPost('foreColor', e.target.value));
+      ghById('visualInsertTableBtn').addEventListener('click', () => {
+        const input = prompt('새 표의 크기를 입력하세요 (행x열, 예: 3x4)', '3x3');
+        if (input === null) return;
+        if (!/^[1-9]\d?x[1-9]\d?$/.test(input.trim())) return alert('3x4 형식으로 입력하세요.');
+        visualPost('insertTable', input.trim());
+      });
+      ghById('visualToolbar').querySelectorAll('[data-visual-table-action]').forEach(btn => {
+        btn.addEventListener('click', () => visualPost('editTable', {action: btn.dataset.visualTableAction}));
+      });
+      ghById('visualCellColor').addEventListener('input', e => visualPost('editTable', {action:'cellColor',value:e.target.value}));
       ghById('visualLinkBtn').addEventListener('click', () => {
         const url = prompt('선택한 글자에 연결할 URL을 입력하세요 (https://...):');
         if (url === null) return;
@@ -1701,6 +1752,11 @@ console.log('캔버스 입자 애니메이션 시작됨');`
           visualFlushResolve = null;
           done();
         }
+      } else if (e.data && e.data.type === 'VISUAL_SELECTION') {
+        const selected = Boolean(e.data.table);
+        document.querySelectorAll('[data-visual-table-action]').forEach(button => {button.disabled = !selected;});
+        ghById('visualCellColor').disabled = !selected;
+        ghById('visualTableSelection').textContent = selected ? '선택된 셀 편집 가능' : '표의 셀을 클릭해 주세요';
       } else if (e.data && e.data.type === 'VISUAL_NOTICE') {
         syncStatusText.textContent = e.data.text || '문서 편집 중';
         if (e.data.error) alert(e.data.text);
