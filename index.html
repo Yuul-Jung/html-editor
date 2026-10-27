@@ -632,13 +632,20 @@
           <label class="text-xs font-semibold">GitHub 사용자명
             <input id="ghOwnerInput" value="Yuul-Jung" spellcheck="false" autocomplete="off" class="mt-1 w-full rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-2 text-sm"/>
           </label>
-          <label class="text-xs font-semibold">개인 접근 토큰(PAT) · 브라우저 메모리에서만 사용
+          <label class="text-xs font-semibold">개인 접근 토큰(PAT) · 이 탭에서만 사용
             <input id="ghTokenInput" type="password" spellcheck="false" autocomplete="off" placeholder="선택: github_pat_... (채팅에 입력하지 마세요)" class="mt-1 w-full rounded border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-2 text-sm"/>
           </label>
           <button id="ghConnectBtn" class="rounded bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 text-xs font-semibold">목록 불러오기</button>
           <button id="ghClearTokenBtn" class="rounded border border-gray-300 dark:border-slate-600 px-3 py-2 text-xs">토큰 지우기</button>
         </div>
-        <p class="text-[11px] text-amber-700 dark:text-amber-300">토큰은 서버에 별도 저장하지 않으며 새로고침 시 사라집니다. 최소 권한(Fine-grained PAT: Contents 읽기/쓰기, Metadata 읽기)만 허용하세요. 실행하는 웹 코드는 격리된 미리보기에서 동작합니다. 비공개 저장소의 외부 이미지·CSS 미리보기는 제한될 수 있습니다.</p>
+        <div class="flex flex-wrap gap-x-4 gap-y-2 items-center text-xs">
+          <label class="inline-flex items-center gap-2 cursor-pointer font-medium">
+            <input id="ghRememberToken" type="checkbox" checked class="accent-indigo-600" />
+            이 탭에서 토큰 기억하기 (새로고침 후 재사용)
+          </label>
+          <span id="ghTokenMemoryStatus" role="status" aria-live="polite" class="text-gray-500 dark:text-slate-400">토큰 미연결</span>
+        </div>
+        <p class="text-[11px] text-amber-700 dark:text-amber-300">체크하면 인증에 성공한 PAT를 브라우저 세션 저장소(sessionStorage)에 보관합니다. 새로고침·탭 복원 시 재사용할 수 있으며, 일반적으로 탭을 닫으면 삭제됩니다(브라우저의 세션 복원 예외 가능). 토큰은 GitHub API 인증에 사용되지만 편집기 운영 서버로 별도 전송하지 않습니다. 같은 출처의 스크립트는 저장된 토큰에 접근할 수 있으므로 공용 PC에서는 사용하지 말고 완료 후 <strong>토큰 지우기</strong>를 누르세요. GitHub 최소 권한(Contents 읽기/쓰기, Metadata 읽기)을 사용하세요.</p>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <section class="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
             <h3 class="px-3 py-2 text-xs font-bold bg-gray-100 dark:bg-slate-800">1. 저장소 선택 <span id="ghRepoCount" class="text-gray-500"></span></h3>
@@ -1061,13 +1068,50 @@ console.log('캔버스 입자 애니메이션 시작됨');`
     const cursorPosLabel = document.getElementById('cursorPos');
     const fileMetricsLabel = document.getElementById('fileMetrics');
 
-    // GitHub repository access: public read-only by default, optional session-only PAT for writes.
+    // GitHub repository access: public read-only by default, optional tab-session PAT for writes.
+    const GH_SESSION_TOKEN_KEY = 'html-editor:github-pat:session:v1';
+    // sessionStorage is scoped to the editor's origin and tab; it is not long-term credential storage.
+    function ghSessionTokenRead() {
+      try { return sessionStorage.getItem(GH_SESSION_TOKEN_KEY) || ''; }
+      catch (_) { return ''; } // Restricted/private browser settings can block storage.
+    }
+    function ghSessionTokenWrite(token) {
+      try {
+        if (token) sessionStorage.setItem(GH_SESSION_TOKEN_KEY, token);
+        else sessionStorage.removeItem(GH_SESSION_TOKEN_KEY);
+        return true;
+      } catch (_) { return false; }
+    }
+    function ghSessionTokenClear() {
+      try { sessionStorage.removeItem(GH_SESSION_TOKEN_KEY); } catch (_) {}
+    }
     const gitState = {
       owner: 'Yuul-Jung', token: '', repos: [], repo: '', branch: '',
       path: '', sha: '', loadedHtml: '', directory: '', isPrivate: false,
       busy: false
     };
     const ghById = id => document.getElementById(id);
+
+    function ghUpdateTokenMemoryStatus() {
+      const token = gitState.token;
+      const saved = Boolean(token && ghById('ghRememberToken').checked &&
+        ghSessionTokenRead() === token);
+      ghById('ghTokenMemoryStatus').textContent = saved
+        ? '토큰 기억됨 · 새로고침 후 재사용'
+        : token ? '이 페이지에서 연결됨 · 세션 기억 꺼짐/불가' : '토큰 미연결';
+      ghById('ghTokenInput').placeholder = token
+        ? '토큰 연결됨 · 변경할 때만 새 토큰 입력'
+        : '선택: github_pat_... (채팅에 입력하지 마세요)';
+    }
+
+    function ghRestoreSessionToken() {
+      const token = ghSessionTokenRead();
+      if (!token) return;
+      gitState.token = token;
+      ghById('ghRememberToken').checked = true;
+      ghById('ghTokenInput').value = '';
+      ghSetStatus('이 탭에 저장된 토큰을 복원했습니다. GitHub 접근 시 권한을 확인합니다.');
+    }
 
     function ghSetStatus(message, error = false) {
       const el = ghById('ghStatus');
@@ -1161,6 +1205,7 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       ghById('ghSaveBtn').disabled = !canSave;
       ghById('ghModalSaveBtn').disabled = !canSave;
       ghById('ghSaveBtn').title = !hasTarget ? 'GitHub 저장소에서 HTML을 먼저 열어 주세요' : !gitState.token ? '클릭하여 GitHub 쓰기 토큰을 입력하세요' : '변경된 HTML 파일을 GitHub에 커밋';
+      ghUpdateTokenMemoryStatus();
     }
 
     function ghConfirmLoseChanges() {
@@ -1424,6 +1469,7 @@ console.log('캔버스 입자 애니메이션 시작됨');`
     }
 
     function ghSetupUI() {
+      ghRestoreSessionToken(); // Must happen before opening deep-linked private GitHub files.
       const modal = ghById('ghModal');
       ghById('ghOpenBtn').addEventListener('click', () => {
         modal.classList.remove('hidden');
@@ -1431,23 +1477,53 @@ console.log('캔버스 입자 애니메이션 시작됨');`
       });
       ghById('ghCloseBtn').addEventListener('click', () => modal.classList.add('hidden'));
       modal.addEventListener('click', e => {if (e.target === modal) modal.classList.add('hidden');});
-      ghById('ghConnectBtn').addEventListener('click', () => {
-        gitState.token = ghById('ghTokenInput').value.trim();
+      // Explicitly opt out of session storage without disconnecting the current page.
+      ghById('ghRememberToken').addEventListener('change', () => {
+        if (!ghById('ghRememberToken').checked) {
+          ghSessionTokenClear();
+          ghSetStatus('이 탭의 저장된 토큰을 삭제했습니다. 현재 페이지 연결은 유지됩니다.');
+        } else if (gitState.token) {
+          const stored = ghSessionTokenWrite(gitState.token);
+          ghSetStatus(stored ? '이 탭에서 새로고침 후에도 토큰을 사용합니다.' :
+            '브라우저가 세션 저장소 접근을 차단했습니다. 토큰은 현재 페이지에서만 사용할 수 있습니다.', !stored);
+        }
+        ghUpdateTokenMemoryStatus();
+      });
+      ghById('ghConnectBtn').addEventListener('click', async () => {
+        const previousToken = gitState.token;
+        const nextToken = ghById('ghTokenInput').value.trim();
+        // Empty password field means reuse an already restored/connected token.
+        if (nextToken) gitState.token = nextToken;
         ghUpdateButtons();
-        ghListRepos().then(() => {
+        try {
+          await ghListRepos(); // Only remember a new token after GitHub accepts it.
+          if (gitState.token && ghById('ghRememberToken').checked) {
+            if (!ghSessionTokenWrite(gitState.token)) {
+              ghSetStatus('GitHub 연결됨. 브라우저 저장소가 차단되어 새로고침 후에는 토큰 재입력이 필요합니다.', true);
+            }
+          } else {
+            ghSessionTokenClear();
+          }
+          ghById('ghTokenInput').value = '';
+          ghUpdateButtons();
           if (gitState.token && gitState.path) {
             ghFeedback('GitHub 인증 확인 · 문서에 수정 사항이 있으면 [GitHub 커밋]을 누르세요.', 'info');
             ghById('ghModal').classList.add('hidden');
           }
-        }).catch(err => {
+        } catch (err) {
+          gitState.token = previousToken; // Do not keep or store an unverified token.
+          ghUpdateButtons();
           ghFeedback('GitHub 인증 또는 목록 불러오기 실패: ' + err.message, 'error');
           ghSetStatus(err.message, true);
-        });
+        }
       });
       ghById('ghClearTokenBtn').addEventListener('click', () => {
-        gitState.token = ''; ghById('ghTokenInput').value = ''; ghUpdateButtons();
+        ghSessionTokenClear();
+        gitState.token = '';
+        ghById('ghTokenInput').value = '';
+        ghUpdateButtons();
         ghFeedback('GitHub 쓰기 토큰이 해제되었습니다. 수정 내용은 아직 편집기에 있습니다.', 'info');
-        ghSetStatus('토큰을 브라우저 메모리에서 지웠습니다.');
+        ghSetStatus('이 탭의 저장된 토큰과 현재 페이지의 인증을 지웠습니다.');
       });
       ghById('ghRepoFilter').addEventListener('input', ghRenderRepos);
       ghById('ghDirUpBtn').addEventListener('click', () => {
