@@ -214,10 +214,22 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
 .inspector-fold>summary{cursor:pointer;font-size:15px;font-weight:750;color:#284264;padding:12px 14px;background:#f0f4fa}
 .inspector-fold[open]>summary{border-bottom:1px solid #dce3ec}
 .inspector-fold>.property-grid{padding:14px}
+
+/* v2.7 preset picker is visible for both single and multi-node styling */
+.preset-panel{background:#fff;border:1px solid #d5deeb;border-radius:9px;padding:13px}
+.preset-panel>label{display:block;font-size:14px;font-weight:750;color:#233b5e;margin-bottom:8px}
+.preset-panel select{width:100%;min-width:0;min-height:46px;font-size:16px;padding:7px 12px;background:#fff;border:1px solid #aab8cd;border-radius:6px;cursor:pointer}
+.preset-preview{display:flex;align-items:center;gap:12px;margin:12px 0;padding:10px;background:#f8f9fc;border-radius:6px;min-height:72px}
+.preset-swatch{min-width:83px;min-height:50px;padding:9px 14px;border:3px solid #1f3a5f;border-radius:2px;display:flex;justify-content:center;align-items:center;font-weight:750}
+#stylePresetDesc{font-size:13px;color:#4b617b;line-height:1.55}
+.preset-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.preset-actions button{font-size:14px!important;min-height:43px;white-space:normal;line-height:1.35;padding:7px}
+.preset-note{font-size:12px;color:#5b6d86;line-height:1.5;margin:10px 0 0}
+@media(max-width:550px){.preset-actions{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.6</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.7</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="marqueeBtn" type="button" aria-pressed="false">▣ 영역 선택</button><button id="selectAllBoxes" type="button">전체 박스</button><button id="clearBoxSelection" type="button">선택 해제</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -242,7 +254,28 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
 <div class="inspector-top"><h2>속성 편집 <span id="selectionTitle" style="color:#6b5ac1">· 전체 도면</span></h2>
 <span class="inspector-caption">선택한 객체의 설정만 표시됩니다</span></div>
 <div id="quickInspector" class="quick-inspector">
- <div class="quick-inspector-title">빠른 편집</div>
+ <div class="quick-inspector-title">기본 스타일 선택</div>
+ <div id="stylePresetPanel" class="preset-panel">
+  <label for="stylePresetSelect">스타일 프리셋</label>
+  <select id="stylePresetSelect" aria-label="스타일 프리셋 선택">
+    <option value="navy">곤색 선 · 투명</option>
+    <option value="mono">흑백 기본형</option>
+    <option value="blue">하늘색 채움</option>
+    <option value="mint">연녹색 채움</option>
+    <option value="wine">와인색 강조</option>
+    <option value="dark">진한 곤색 채움</option>
+  </select>
+  <div id="stylePresetPreview" class="preset-preview" aria-live="polite">
+    <span id="stylePresetSwatch" class="preset-swatch">Aa</span>
+    <span id="stylePresetDesc">곤색 윤곽선 · 투명 배경 · 기본 글자</span>
+  </div>
+  <div class="preset-actions">
+   <button id="applyStyleSelected" type="button">선택 박스에 적용</button>
+   <button id="makeStyleDefault" type="button">새 박스 기본 지정</button>
+  </div>
+  <p id="stylePresetStatus" class="preset-note">기존 박스는 선택 후 적용합니다. 신규 박스에는 지정한 기본 스타일을 사용합니다.</p>
+ </div>
+ <div class="quick-inspector-title" style="margin-top:16px">빠른 편집</div>
  <div id="quickNode" class="quick-scope" hidden>
   <div class="property-grid">
    <label>주 글자(px)<input id="quickFontMain" type="number" min="10" max="80" step="1"></label>
@@ -251,7 +284,8 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
    <label>글자색<input id="quickTextColor" type="color" value="#172439"></label>
    <label>테두리색<input id="quickStrokeColor" type="color" value="#1f3a5f"></label>
    <label>테두리 두께(px)<input id="quickStrokeWidth" type="number" min="1" max="15" step="0.5"></label>
-   <label>내부 여백(px)<input id="quickPad" type="number" min="12" max="80" step="1"></label>
+   <label>좌우 여백(px)<input id="quickPad" type="number" min="12" max="80" step="1"></label>
+   <label>상하 여백(px)<input id="quickPadY" type="number" min="8" max="80" step="0.33"></label>
    <label>중심 X(px)<input id="quickX" type="number" step="5"></label>
    <label>중심 Y(px)<input id="quickY" type="number" step="5"></label>
    <label>가로 크기(px)<input id="quickW" type="number" min="120" max="1800" step="5"></label>
@@ -304,7 +338,7 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
     <label><input type="checkbox" id="batchDoFonts" checked> 글자 크기(px)</label>
     <div class="batch-fields"><label>첫 줄 <input type="number" id="batchFontMain" value="23" min="10" max="80"></label><label>둘째 줄 <input type="number" id="batchFontSub" value="18" min="9" max="60"></label></div>
     <label><input type="checkbox" id="batchDoPadding" checked> 내부 여백(px)</label>
-    <input type="number" id="batchPad" value="12" min="12" max="80">
+    <div class="batch-fields"><label>좌우 여백(px)<input type="number" id="batchPad" value="12" min="12" max="80"></label><label>상하 여백(px)<input type="number" id="batchPadY" value="10.67" min="8" max="80" step="0.33"></label></div>
     <label><input type="checkbox" id="batchDoOutline" checked> 윤곽선</label>
     <div class="batch-fields"><label>색상 <input type="color" id="batchOutlineColor" value="#1f3a5f"></label><label>굵기 <input type="number" id="batchOutlineWidth" value="3.5" min="1" max="12" step=".5"></label></div>
     <label><input type="checkbox" id="batchDoFill"> 배경색 변경</label>
@@ -382,7 +416,7 @@ function baseScene(){
   ];
   const edge=(id,from,to,fp,tp,label='',route='auto')=>({id,from,to,fp,tp,label,route});
   const edges=[edge('e1','start','declare','bottom','top'),edge('e2','declare','intro','bottom','top'),edge('e3','intro','status','bottom','top'),edge('e4','status','receive','bottom','top'),edge('e5','receive','d1','bottom','top'),edge('e6','d1','cmd','right','left','예'),edge('e7','d1','d2','bottom','top','아니오'),edge('e8','d2','err1','right','left','예'),edge('e9','d2','d3','bottom','top','아니오'),edge('e10','d3','err2','right','left','예'),edge('e11','d3','repeat','bottom','top','아니오'),edge('e12','cmd','repeat','right','right','','loopRight'),edge('e13','err1','repeat','right','right','','loopRight'),edge('e14','err2','repeat','right','right','','loopRight'),edge('e15','repeat','receive','left','left','반복','loopLeft')];
-  return {version:3,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'left',autoFit:true},subtitle:{x:725,y:98,w:950,h:38,size:20,align:'left',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.5,gap:38,pad:12},nodes,edges};
+  return {version:3,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'left',autoFit:true},subtitle:{x:725,y:98,w:950,h:38,size:20,align:'left',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.5,gap:38,pad:12,padY:10.67,defaultPreset:'navy'},nodes,edges};
 }
 let activeHeading=null,headingDrag=null;
 let marqueeMode=false,marquee=null,spacePanHeld=false,editorGridVisible=false;
@@ -418,13 +452,14 @@ function measureFlowText(text,fontSize,weight){
 function fitRectToText(node){
  if(!node||node.type!=='rect')return false;
  const fs=Number(node.fontMain||scene.settings.fontMain)||23,ss=Number(node.fontSub||scene.settings.fontSub)||18;
- const pad=Math.max(12,Number(node.pad||scene.settings.pad)||12);
- // 3mm (~12 CSS px) of clear space on all four sides.
+ const pad=Math.max(12,Number(node.pad??scene.settings.pad)||12);
+ const padY=Math.max(8,Number(node.padY??scene.settings.padY??(pad-1.3333)));
+ // Keep left/right 3mm. Top/bottom each reduce by 1pt (~1.33px).
  const textWidth=Math.max(measureFlowText(node.title||'',fs,750),measureFlowText(node.sub||'',ss,400));
  const inset=pad;
  const neededW=Math.ceil(((textWidth*1.08)+inset*2)/5)*5;
- const neededH=node.sub?Math.ceil((pad*2+fs*1.32+ss*1.45+10)/5)*5:
-                          Math.ceil((pad*2+fs*1.45)/5)*5;
+ const neededH=node.sub?Math.ceil((padY*2+fs*1.32+ss*1.45+10)/5)*5:
+                          Math.ceil((padY*2+fs*1.45)/5)*5;
  const w=Math.max(150,neededW),h=Math.max(62,neededH);
  const changed=node.w!==w||node.h!==h;
  node.w=w;node.h=h;
@@ -466,7 +501,8 @@ function refineRenderedText(svg){
   const texts=Array.from(g.querySelectorAll('text'));
   if(!texts.length)continue;
   if(n.type==='rect'&&$('autoFitText')?.checked&&n.autoFit!==false){
-   const pad=Math.max(12,Number(n.pad||scene.settings.pad)||12);
+   const pad=Math.max(12,Number(n.pad??scene.settings.pad)||12);
+   const padY=Math.max(8,Number(n.padY??scene.settings.padY??(pad-1.3333)));
    let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
    for(const t of texts){
     try{const b=t.getBBox();left=Math.min(left,b.x);right=Math.max(right,b.x+b.width);
@@ -475,7 +511,7 @@ function refineRenderedText(svg){
    if(Number.isFinite(left)&&Number.isFinite(right)&&Number.isFinite(top)&&Number.isFinite(bottom)){
     // Symmetric sizing makes all four margins at least 3 mm around real glyphs.
     const w=Math.ceil((2*Math.max(n.x-left,right-n.x)+2*pad)/5)*5;
-    const h=Math.ceil((2*Math.max(n.y-top,bottom-n.y)+2*pad)/5)*5;
+    const h=Math.ceil((2*Math.max(n.y-top,bottom-n.y)+2*padY)/5)*5;
     if(w>n.w+1){n.w=w;changed=true;}
     if(h>n.h+1){n.h=h;changed=true;}
    }
@@ -553,7 +589,9 @@ $('canvas').addEventListener('pointerup',evt=>{if(drag){drag=null;showProps();}t
 $('canvas').addEventListener('dblclick',evt=>{if(mode==='raw'){if(rawSelected&&rawSelected.tagName?.toLowerCase()==='text'){let v=prompt('글자 수정',rawSelected.textContent);if(v!==null){rawSelected.textContent=v;$('rawLabel').value=v;}}return;}let g=evt.target.closest('[data-node]');if(!g)return;let n=getNode(g.dataset.node);if(!n)return;let val=prompt('박스 첫 줄 글자 수정',n.title);if(val!==null){checkpoint();n.title=val;updateUI();}});
 $('rawLabel').addEventListener('change',()=>{if(mode==='raw'&&rawSelected&&rawSelected.tagName?.toLowerCase()==='text'){rawSelected.textContent=$('rawLabel').value}});
 function uid(prefix){return prefix+Date.now().toString(36)+Math.floor(Math.random()*999)}
-function addNode(type){if(mode!=='structured'){toast('외부 SVG는 그룹 이동 편집 모드입니다. JSON 도면에서 새 노드를 추가할 수 있습니다.');return;}checkpoint();const id=uid('n');scene.nodes.push({id,type,x:scene.width/2,y:scene.height-135,w:type==='diamond'?365:465,h:type==='diamond'?140:96,title:type==='diamond'?'조건인가?':'새 처리 단계',sub:type==='diamond'?'예 / 아니오 분기':'설명을 입력하세요',fill:'none'});selected=new Set([id]);edgeSelect=null;if(type==='rect'&&$('autoFitText')?.checked)fitRectToText(getNode(id));updateUI();toast('새 도형이 추가되었습니다. 이동해 배치하세요.')}
+function addNode(type){if(mode!=='structured'){toast('외부 SVG는 그룹 이동 편집 모드입니다. JSON 도면에서 새 노드를 추가할 수 있습니다.');return;}checkpoint();const id=uid('n');const n={id,type,x:scene.width/2,y:scene.height-135,w:type==='diamond'?365:465,h:type==='diamond'?140:96,title:type==='diamond'?'조건인가?':'새 처리 단계',sub:type==='diamond'?'예 / 아니오 분기':'설명을 입력하세요',fill:'none'};
+ applyPresetToNode(n,scene.settings.defaultPreset||'navy');
+ scene.nodes.push(n);selected=new Set([id]);edgeSelect=null;if(type==='rect'&&$('autoFitText')?.checked)fitRectToText(getNode(id));updateUI();toast('새 도형이 추가되었습니다. 이동해 배치하세요.')}
 $('addRect').onclick=()=>addNode('rect');$('addDiamond').onclick=()=>addNode('diamond');$('addEdge').onclick=()=>{if(mode!=='structured'){toast('연결선 자동 편집은 구조화 도면에서만 가능합니다.');return;}connecting=!connecting;connectSource=null;$('addEdge').classList.toggle('primary',connecting);highlightStatus();toast(connecting?'시작 도형을 클릭하세요.':'연결선 추가 취소')};
 function deleteSelected(){if(mode==='raw'){if(rawSelected){rawSelected.remove();rawSelected=null;showProps();}return;}if(!selected.size&&!edgeSelect)return;checkpoint();if(selected.size){scene.nodes=scene.nodes.filter(n=>!selected.has(n.id));scene.edges=scene.edges.filter(e=>!selected.has(e.from)&&!selected.has(e.to));}if(edgeSelect)scene.edges=scene.edges.filter(e=>e.id!==edgeSelect);selected.clear();edgeSelect=null;updateUI()}
 $('delete').onclick=deleteSelected;$('undo').onclick=undo;$('redo').onclick=redo;
@@ -1196,14 +1234,15 @@ $('applyBatch').onclick=()=>{
  const candidates=[...selected].map(getNode).filter(Boolean);
  const fMain=Number(batchGet('batchFontMain').value),fSub=Number(batchGet('batchFontSub').value);
  const padding=Number(batchGet('batchPad').value);
+ const paddingY=Number(batchGet('batchPadY').value);
  const outlineWidth=Number(batchGet('batchOutlineWidth').value);
  if(batchGet('batchDoFonts').checked&&(!Number.isFinite(fMain)||fMain<10||fMain>80||!Number.isFinite(fSub)||fSub<9||fSub>60)){toast('글자 크기 범위를 확인해 주세요.');return;}
- if(batchGet('batchDoPadding').checked&&(!Number.isFinite(padding)||padding<12||padding>80)){toast('여백은 12~80px 범위입니다.');return;}
+ if(batchGet('batchDoPadding').checked&&(!Number.isFinite(padding)||padding<12||padding>80||!Number.isFinite(paddingY)||paddingY<8||paddingY>80)){toast('좌우 여백 12~80px, 상하 여백 8~80px 범위를 확인하세요.');return;}
  if(batchGet('batchDoOutline').checked&&(!Number.isFinite(outlineWidth)||outlineWidth<1||outlineWidth>12)){toast('윤곽선 굵기를 확인해 주세요.');return;}
  checkpoint();
  for(const n of candidates){
   if(batchGet('batchDoFonts').checked){n.fontMain=fMain;n.fontSub=fSub}
-  if(batchGet('batchDoPadding').checked)n.pad=padding;
+  if(batchGet('batchDoPadding').checked){n.pad=padding;n.padY=paddingY;}
   if(batchGet('batchDoOutline').checked){n.strokeColor=batchGet('batchOutlineColor').value;n.strokeWidth=outlineWidth}
   if(batchGet('batchDoFill').checked)n.fill=batchGet('batchTransparent').checked?'none':batchGet('batchFill').value;
   if(batchGet('batchTextAlign').value)n.textAlign=batchGet('batchTextAlign').value;
@@ -1216,7 +1255,7 @@ $('batchResetStyle').onclick=()=>{
  if(mode!=='structured'||selected.size<2)return;
  checkpoint();
  for(const n of scene.nodes.filter(n=>selected.has(n.id))){
-  delete n.fontMain;delete n.fontSub;delete n.pad;delete n.strokeColor;delete n.strokeWidth;delete n.textAlign;delete n.textColor;delete n.subTextColor;
+  delete n.fontMain;delete n.fontSub;delete n.pad;delete n.padY;delete n.strokeColor;delete n.strokeWidth;delete n.textAlign;delete n.textColor;delete n.subTextColor;
   n.fill='none';
   if(n.type==='rect')fitRectToText(n);
  }
@@ -1310,6 +1349,7 @@ function updateQuickInspector(){
   safeValue('quickStrokeColor',cssColor(n.strokeColor,'#1f3a5f'));
   safeValue('quickStrokeWidth',n.strokeWidth??scene.settings.stroke);
   safeValue('quickPad',n.pad??scene.settings.pad);
+  safeValue('quickPadY',n.padY??scene.settings.padY??10.67);
   safeValue('quickX',n.x);safeValue('quickY',n.y);safeValue('quickW',n.w);safeValue('quickH',n.h);
   $('quickTransparent').checked=n.fill==='none';safeValue('quickFill',cssColor(n.fill,'#ffffff')); $('quickFill').disabled=n.fill==='none';
   $('quickAutoFit').checked=n.autoFit!==false;
@@ -1361,7 +1401,7 @@ function hookNode(id,key,min,max){
 }
 for(const [id,key,lo,hi] of [
  ['quickFontMain','fontMain',10,80],['quickFontSub','fontSub',9,60],
- ['quickStrokeWidth','strokeWidth',1,15],['quickPad','pad',12,80]
+ ['quickStrokeWidth','strokeWidth',1,15],['quickPad','pad',12,80],['quickPadY','padY',8,80]
 ])hookNode(id,key,lo,hi);
 for(const [id,key,lo,hi] of [
  ['quickX','x',-10000,10000],['quickY','y',-10000,10000],
@@ -1462,7 +1502,7 @@ function organizeQuickGroups(){
  inspectorFold('quickNode','foldNodeText','글자 · 정렬 · 색상',
   ['quickFontMain','quickFontSub','quickTextAlign','quickTextColor'],true);
  inspectorFold('quickNode','foldNodeShape','박스 · 테두리 · 배경',
-  ['quickStrokeColor','quickStrokeWidth','quickPad','quickAutoFit','quickTransparent','quickFill'],true);
+  ['quickStrokeColor','quickStrokeWidth','quickPad','quickPadY','quickAutoFit','quickTransparent','quickFill'],true);
  inspectorFold('quickNode','foldNodeGeometry','위치 · 가로세로 크기',
   ['quickX','quickY','quickW','quickH'],false);
  const nodeRoot=$('quickNode').querySelector(':scope > .property-grid');
