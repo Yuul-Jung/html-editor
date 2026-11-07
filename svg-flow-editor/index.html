@@ -126,7 +126,7 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
  <div class="field"><label>둘째 줄 · 설명</label><textarea id="nodeSub" rows="2"></textarea></div>
  <div class="twocol"><div class="field"><label>X (중심)</label><input id="nodeX" type="number" step="5"></div><div class="field"><label>Y (중심)</label><input id="nodeY" type="number" step="5"></div></div>
  <div class="twocol"><div class="field"><label>가로(px)</label><input id="nodeW" type="number" min="120" max="1800" step="10"></div><div class="field"><label>세로(px)</label><input id="nodeH" type="number" min="50" max="800" step="10"></div></div>
- <div class="twocol"><div class="field"><label>도형 종류</label><select id="nodeType"><option value="rect">직사각형</option><option value="diamond">판단 마름모</option></select></div><div class="field"><label>채우기</label><input id="nodeFill" type="color"></div></div>
+ <div class="twocol"><div class="field"><label>도형 종류</label><select id="nodeType"><option value="rect">직사각형</option><option value="diamond">판단 마름모</option></select></div><div class="field"><label>배경색(선택)</label><input id="nodeFill" type="color"></div></div><label class="auto-fit-toggle"><input id="nodeTransparent" type="checkbox" checked> 투명 배경(기본값)</label>
  <div class="field auto-fit-field"><label class="auto-fit-toggle"><input id="autoFitText" type="checkbox" checked> 글자 수정 시 직사각형 자동 맞춤</label><button type="button" id="fitSelectedText">선택한 직사각형 글자에 맞춤</button></div>
  <div class="note">박스를 드래그하면 연결선이 자동으로 따라갑니다. 판단 마름모는 꼭짓점에서만 분기합니다.</div>
 </div>
@@ -150,7 +150,7 @@ const NS='http://www.w3.org/2000/svg';
 const $=id=>document.getElementById(id);
 function baseScene(){
   const center=590,right=1080;
-  const node=(id,type,x,y,w,h,title,sub,fill)=>({id,type,x,y,w,h,title,sub,fill});
+  const node=(id,type,x,y,w,h,title,sub,fill)=>({id,type,x,y,w,h,title,sub,fill:'none'});
   const nodes=[
    node('start','rect',center,160,350,72,'프로그램 시작 · main()','','#ece8fc'),
    node('declare','rect',center,282,520,85,'char line[LINE_CAPACITY]','int result; 변수 선언','#ffffff'),
@@ -167,7 +167,7 @@ function baseScene(){
   ];
   const edge=(id,from,to,fp,tp,label='',route='auto')=>({id,from,to,fp,tp,label,route});
   const edges=[edge('e1','start','declare','bottom','top'),edge('e2','declare','intro','bottom','top'),edge('e3','intro','status','bottom','top'),edge('e4','status','receive','bottom','top'),edge('e5','receive','d1','bottom','top'),edge('e6','d1','cmd','right','left','예'),edge('e7','d1','d2','bottom','top','아니오'),edge('e8','d2','err1','right','left','예'),edge('e9','d2','d3','bottom','top','아니오'),edge('e10','d3','err2','right','left','예'),edge('e11','d3','repeat','bottom','top','아니오'),edge('e12','cmd','repeat','right','right','','loopRight'),edge('e13','err1','repeat','right','right','','loopRight'),edge('e14','err2','repeat','right','right','','loopRight'),edge('e15','repeat','receive','left','left','반복','loopLeft')];
-  return {version:2,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'center',autoFit:true},subtitle:{x:725,y:98,w:950,h:38,size:20,align:'center',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.4,gap:38,pad:12},nodes,edges};
+  return {version:3,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'left',autoFit:true},subtitle:{x:725,y:98,w:950,h:38,size:20,align:'left',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.4,gap:38,pad:12},nodes,edges};
 }
 let activeHeading=null,headingDrag=null;
 let scene=baseScene(),mode='structured',rawDoc=null,rawSelected=null,selected=new Set(),edgeSelect=null,connecting=false,connectSource=null,zoom=0.7,history=[],future=[],drag=null,historyLast=0;
@@ -204,7 +204,7 @@ function fitRectToText(node){
  const title=String(node.title||''),sub=String(node.sub||'');
  const fs=Number(scene.settings.fontMain)||20,ss=Number(scene.settings.fontSub)||16;
  const pad=Math.max(8,Number(scene.settings.pad)||8);
- const safeX=pad+8; // margin from glyph to rectangle outline; includes 2mm minimum
+ const safeX=Math.max(18,pad+6); // same inset as left-aligned text; 12px minimum padding
  const contentW=Math.max(measureFlowText(title,fs,750),measureFlowText(sub,ss,400));
  const neededW=Math.ceil((contentW+safeX*2)/5)*5;
  const neededH=sub?Math.ceil((fs*1.4+ss*1.45+pad*2)/5)*5:
@@ -216,9 +216,14 @@ function fitRectToText(node){
 }
 function fitAllRects(){let count=0;for(const node of scene.nodes)if(fitRectToText(node))count++;return count;}
 
-function drawText(group,n){let fs=scene.settings.fontMain,ss=scene.settings.fontSub;const titleWidth=n.w-(scene.settings.pad*2);const title=n.title||'';let approx=title.length*fs*.65;if(approx>titleWidth)fs=Math.max(14,fs*titleWidth/approx);const hasSub=Boolean(n.sub);let firstY=n.y+(hasSub?-5:fs*.33);
- const a=sEl('text',{x:n.x,y:firstY,'text-anchor':'middle','font-size':fs,'font-weight':750,fill:'#1b293f','pointer-events':'none'},title);group.appendChild(a);
- if(hasSub){let subs=n.sub;let sw=n.w-(scene.settings.pad*2);let subSize=Math.min(ss,Math.max(13,ss*sw/Math.max(sw,subs.length*ss*.61)));group.appendChild(sEl('text',{x:n.x,y:n.y+28,'text-anchor':'middle','font-size':subSize,'font-weight':400,fill:'#34435a','pointer-events':'none'},subs));}
+function drawText(group,n){
+ const fs=Number(scene.settings.fontMain)||23,ss=Number(scene.settings.fontSub)||18;
+ const pad=Math.max(12,Number(scene.settings.pad)||12);
+ const left=n.x-n.w/2+pad+6;
+ const hasSub=Boolean(n.sub);
+ const titleY=hasSub?n.y-fs*.16:n.y+fs*.36;
+ group.appendChild(sEl('text',{x:left,y:titleY,'text-anchor':'start','font-size':fs,'font-weight':750,fill:'#1b293f','pointer-events':'none'},n.title||''));
+ if(hasSub)group.appendChild(sEl('text',{x:left,y:n.y+ss*1.2,'text-anchor':'start','font-size':ss,'font-weight':400,fill:'#34435a','pointer-events':'none'},n.sub));
 }
 function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.replaceChildren();s.setAttribute('width',scene.width);s.setAttribute('height',scene.height);s.setAttribute('viewBox',`0 0 ${scene.width} ${scene.height}`);
  const defs=sEl('defs');const marker=sEl('marker',{id:'arrowhead',markerWidth:10,markerHeight:10,refX:9,refY:5,orient:'auto',markerUnits:'userSpaceOnUse'});marker.appendChild(sEl('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#233247'}));defs.append(marker);s.append(defs);
@@ -240,7 +245,7 @@ function showProps(){const count=selected.size; $('headingSettings').style.displ
  if(mode==='raw'){$('rawLabel').value=rawSelected?.textContent||'';return}
  if(activeHeading){const h=getHeading(activeHeading);$('headingValue').value=scene[activeHeading];$('headingSize').value=h.size;$('headingSizeLabel').textContent=h.size+'px';$('headingAlign').value=h.align;$('headingAuto').checked=h.autoFit!==false;return;}
  if(!count&&!edgeSelect&&!activeHeading){for(const [id,val] of Object.entries({titleInput:scene.title,subtitleInput:scene.subtitle,pageW:scene.width,fontMain:scene.settings.fontMain,fontSub:scene.settings.fontSub,strokeW:scene.settings.stroke,gapY:scene.settings.gap,padNode:scene.settings.pad})){$(id).value=val;$(id).dataset.lastApplied=String(val);}}
- if(count===1){const n=getNode([...selected][0]);if(!n)return;for(const [id,val] of Object.entries({nodeTitle:n.title,nodeSub:n.sub,nodeX:n.x,nodeY:n.y,nodeW:n.w,nodeH:n.h,nodeType:n.type,nodeFill:n.fill})){$(id).value=val;$(id).dataset.lastApplied=String(val);}}
+ if(count===1){const n=getNode([...selected][0]);if(!n)return;for(const [id,val] of Object.entries({nodeTitle:n.title,nodeSub:n.sub,nodeX:n.x,nodeY:n.y,nodeW:n.w,nodeH:n.h,nodeType:n.type,nodeFill:/^#[0-9a-fA-F]{6}$/.test(n.fill||'')?n.fill:'#ffffff'})){$(id).value=val;$(id).dataset.lastApplied=String(val);} $('nodeTransparent').checked=n.fill==='none'; $('nodeFill').disabled=n.fill==='none';}
  if(edgeSelect){let e=scene.edges.find(x=>x.id===edgeSelect);if(!e)return;for(const id of ['edgeFrom','edgeTo']){$(id).replaceChildren(...scene.nodes.map(n=>new Option(n.id+' · '+n.title.slice(0,18),n.id)));}
  for(const [id,val] of Object.entries({edgeFrom:e.from,edgeTo:e.to,edgeFromPort:e.fp,edgeToPort:e.tp,edgeLabel:e.label,edgeRoute:e.route})){$(id).value=val;$(id).dataset.lastApplied=String(val);}}}
 function updateUI(){render();showProps();updateUndo()}
@@ -262,7 +267,7 @@ $('canvas').addEventListener('pointerup',evt=>{if(drag){drag=null;showProps();}t
 $('canvas').addEventListener('dblclick',evt=>{if(mode==='raw'){if(rawSelected&&rawSelected.tagName?.toLowerCase()==='text'){let v=prompt('글자 수정',rawSelected.textContent);if(v!==null){rawSelected.textContent=v;$('rawLabel').value=v;}}return;}let g=evt.target.closest('[data-node]');if(!g)return;let n=getNode(g.dataset.node);if(!n)return;let val=prompt('박스 첫 줄 글자 수정',n.title);if(val!==null){checkpoint();n.title=val;updateUI();}});
 $('rawLabel').addEventListener('change',()=>{if(mode==='raw'&&rawSelected&&rawSelected.tagName?.toLowerCase()==='text'){rawSelected.textContent=$('rawLabel').value}});
 function uid(prefix){return prefix+Date.now().toString(36)+Math.floor(Math.random()*999)}
-function addNode(type){if(mode!=='structured'){toast('외부 SVG는 그룹 이동 편집 모드입니다. JSON 도면에서 새 노드를 추가할 수 있습니다.');return;}checkpoint();const id=uid('n');scene.nodes.push({id,type,x:scene.width/2,y:scene.height-135,w:type==='diamond'?365:465,h:type==='diamond'?140:96,title:type==='diamond'?'조건인가?':'새 처리 단계',sub:type==='diamond'?'예 / 아니오 분기':'설명을 입력하세요',fill:type==='diamond'?'#fff4d5':'#ffffff'});selected=new Set([id]);edgeSelect=null;if(type==='rect'&&$('autoFitText')?.checked)fitRectToText(getNode(id));updateUI();toast('새 도형이 추가되었습니다. 이동해 배치하세요.')}
+function addNode(type){if(mode!=='structured'){toast('외부 SVG는 그룹 이동 편집 모드입니다. JSON 도면에서 새 노드를 추가할 수 있습니다.');return;}checkpoint();const id=uid('n');scene.nodes.push({id,type,x:scene.width/2,y:scene.height-135,w:type==='diamond'?365:465,h:type==='diamond'?140:96,title:type==='diamond'?'조건인가?':'새 처리 단계',sub:type==='diamond'?'예 / 아니오 분기':'설명을 입력하세요',fill:'none'});selected=new Set([id]);edgeSelect=null;if(type==='rect'&&$('autoFitText')?.checked)fitRectToText(getNode(id));updateUI();toast('새 도형이 추가되었습니다. 이동해 배치하세요.')}
 $('addRect').onclick=()=>addNode('rect');$('addDiamond').onclick=()=>addNode('diamond');$('addEdge').onclick=()=>{if(mode!=='structured'){toast('연결선 자동 편집은 구조화 도면에서만 가능합니다.');return;}connecting=!connecting;connectSource=null;$('addEdge').classList.toggle('primary',connecting);highlightStatus();toast(connecting?'시작 도형을 클릭하세요.':'연결선 추가 취소')};
 function deleteSelected(){if(mode==='raw'){if(rawSelected){rawSelected.remove();rawSelected=null;showProps();}return;}if(!selected.size&&!edgeSelect)return;checkpoint();if(selected.size){scene.nodes=scene.nodes.filter(n=>!selected.has(n.id));scene.edges=scene.edges.filter(e=>!selected.has(e.from)&&!selected.has(e.to));}if(edgeSelect)scene.edges=scene.edges.filter(e=>e.id!==edgeSelect);selected.clear();edgeSelect=null;updateUI()}
 $('delete').onclick=deleteSelected;$('undo').onclick=undo;$('redo').onclick=redo;
@@ -589,7 +594,7 @@ function getHeading(key){
  if(!scene.headings)scene.headings={};
  if(!scene.headings[key]){
   const main=key==='title';
-  scene.headings[key]={x:scene.width/2,y:main?48:98,w:main?1000:950,h:main?58:38,size:main?33:20,align:'center',autoFit:true};
+  scene.headings[key]={x:scene.width/2,y:main?48:98,w:main?1000:950,h:main?58:38,size:main?33:20,align:'left',autoFit:true};
  }
  return scene.headings[key];
 }
@@ -597,13 +602,14 @@ function fitHeading(key){
  const h=getHeading(key),t=String(scene[key]||''),font=key==='title'?780:400;
  h.w=Math.max(140,Math.ceil((measureFlowText(t,h.size,font)+40)/10)*10);
  h.h=Math.max(35,Math.ceil((h.size*1.52+12)/5)*5);
+ if((h.align||'left')==='left')h.x=h.w/2+50;
 }
 function drawHeadingBoxes(svg){
  for(const key of ['title','subtitle']){
   const h=getHeading(key),g=sEl('g',{'data-heading':key});
   const left=h.x-h.w/2,top=h.y-h.h/2;
   g.append(sEl('rect',{x:left,y:top,width:h.w,height:h.h,class:'heading-hit'}));
-  const align=h.align||'center',margin=12;
+  const align=h.align||'left',margin=12;
   const x=align==='left'?left+margin:align==='right'?left+h.w-margin:h.x;
   const anchor=align==='left'?'start':align==='right'?'end':'middle';
   g.append(sEl('text',{x,y:h.y+h.size*.34,'font-size':h.size,'font-weight':key==='title'?780:400,fill:key==='title'?'#172439':'#617083','text-anchor':anchor,class:'heading-text'},scene[key]));
@@ -717,6 +723,44 @@ document.addEventListener('keydown',evt=>{
  else for(const id of selected){const n=getNode(id);if(n){n.x+=dx;n.y+=dy}}
  updateUI();
 });
+
+
+/* v1.5 — transparent shapes, left alignment, intrinsic rectangle sizing */
+function useV15Defaults(){
+ for(const n of scene.nodes){n.fill='none';if(n.type==='rect')fitRectToText(n);}
+ for(const key of ['title','subtitle']){
+  const h=getHeading(key);
+  h.align='left';fitHeading(key);
+ }
+}
+useV15Defaults();
+$('nodeTransparent').addEventListener('change',()=>{
+ if(mode!=='structured')return;
+ const n=currentSingleRect();if(!n)return;
+ checkpoint();n.fill=$('nodeTransparent').checked?'none':$('nodeFill').value||'#ffffff';
+ updateUI();
+});
+$('nodeFill').addEventListener('change',()=>{
+ const n=currentSingleRect();
+ if(n&&n.fill!=='none'){$('nodeTransparent').checked=false;$('nodeFill').disabled=false;}
+});
+for(const id of ['nodeTitle','nodeSub']){
+ $(id).addEventListener('input',()=>{
+  if(mode!=='structured'||!$('autoFitText').checked)return;
+  const n=currentSingleRect();if(!n||n.type!=='rect')return;
+  const key=id==='nodeTitle'?'title':'sub';
+  if(n[key]!==$(id).value){n[key]=$(id).value;fitRectToText(n);render();showProps();}
+ });
+}
+const oldResetAction=$('resetScene').onclick;
+$('resetScene').onclick=()=>{
+ // The existing reset handler is preserved; apply the v1.5 style after reset completes.
+ oldResetAction();
+ if(mode==='structured'&&scene.version===2){useV15Defaults();scene.version=3;updateUI();}
+};
+const originalInitFit=fitCanvas;
+fitCanvas=function(){originalInitFit();};
+updateUI();
 
 </script>
 </body></html>
