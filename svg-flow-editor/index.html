@@ -133,12 +133,31 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
   body.resizing-panel,body.resizing-panel *{cursor:col-resize !important;user-select:none !important}
 }
 @media(max-width:870px){#panelSplitter{display:none !important}}
+
+/* v2.2 bulk editor + visible rubber-band selection */
+.batch-panel{border:1px solid #9cafd0;border-radius:10px;background:#f6f8fd;padding:16px;margin:10px 0 18px}
+.batch-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.batch-header strong{font-size:17px;color:#1d3456}.batch-header button{font-size:13px;padding:6px 10px}
+.batch-hint{font-size:13px;color:#53677f;line-height:1.5;margin:8px 0 14px}
+.batch-grid{display:grid;grid-template-columns:1fr;gap:9px}
+.batch-grid>label{font-weight:700;display:flex;align-items:center;gap:9px}
+.batch-grid input[type=checkbox]{width:19px;height:19px;accent-color:#4f3fbc}
+.batch-grid input[type=number]{width:100%;min-width:0;min-height:42px;padding:8px;border:1px solid #acbbcf;border-radius:5px}
+.batch-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center}
+.batch-fields>label{display:grid;gap:4px;font-size:13px}
+.batch-fields input[type=color]{width:100%;height:42px;border:1px solid #a4b1c5;background:#fff}
+.batch-submit{width:100%;min-height:45px;margin-top:16px;font-weight:750}
+#batchResetStyle{width:100%;margin-top:8px}
+#marqueeBtn.active{background:#e0dbff;border-color:#4a36a6;font-weight:750}
+#rubberBand{fill:rgba(78,62,180,.12);stroke:#543ac5;stroke-width:2.5;stroke-dasharray:9 5;pointer-events:none}
+@media(min-width:871px){#viewport{justify-content:center !important;padding:10px !important}
+ #work{margin-left:auto !important;margin-right:auto !important}}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.1</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.2</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
-<button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
+<button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="marqueeBtn" type="button" aria-pressed="false">▣ 영역 선택</button><button id="selectAllBoxes" type="button">전체 박스</button><button id="clearBoxSelection" type="button">선택 해제</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
 <span class="sep"></span><button id="fit">화면 맞춤</button><button id="zoomOut">－</button><span id="zoomText">100%</span><button id="zoomIn">＋</button>
 <span class="sep"></span><button id="autoLayout">수직 정렬</button>
@@ -153,6 +172,23 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
      aria-valuenow="600" title="좌우로 드래그하여 편집창 너비 조절 · 더블클릭 초기화"></div>
 <aside>
 <h2>속성 편집 <span id="selectionTitle" style="color:#6b5ac1">· 전체 도면</span></h2>
+<section id="batchPanel" class="batch-panel" hidden>
+  <div class="batch-header"><strong id="batchCount">0개 박스 선택</strong><button type="button" id="batchClear">선택 해제</button></div>
+  <p class="batch-hint">Shift+클릭으로 추가 선택하거나 상단 「영역 선택」으로 드래그하세요. 선택한 박스만 수정됩니다.</p>
+  <div class="batch-grid">
+    <label><input type="checkbox" id="batchDoFonts" checked> 글자 크기(px)</label>
+    <div class="batch-fields"><label>첫 줄 <input type="number" id="batchFontMain" value="23" min="10" max="80"></label><label>둘째 줄 <input type="number" id="batchFontSub" value="18" min="9" max="60"></label></div>
+    <label><input type="checkbox" id="batchDoPadding" checked> 내부 여백(px)</label>
+    <input type="number" id="batchPad" value="12" min="12" max="80">
+    <label><input type="checkbox" id="batchDoOutline" checked> 윤곽선</label>
+    <div class="batch-fields"><label>색상 <input type="color" id="batchOutlineColor" value="#1f3a5f"></label><label>굵기 <input type="number" id="batchOutlineWidth" value="3.5" min="1" max="12" step=".5"></label></div>
+    <label><input type="checkbox" id="batchDoFill"> 배경색 변경</label>
+    <div class="batch-fields"><label><input type="checkbox" id="batchTransparent" checked> 투명</label><input type="color" id="batchFill" value="#ffffff"></div>
+    <label class="batch-wide"><input type="checkbox" id="batchFit" checked> 직사각형 글자 크기에 자동 맞춤</label>
+  </div>
+  <button id="applyBatch" class="primary batch-submit" type="button">선택한 박스 일괄 적용</button>
+  <button id="batchResetStyle" type="button">선택한 박스 스타일 기본값으로 복원</button>
+</section>
 <div id="generalSettings">
  <div class="field"><label for="titleInput">도면 제목</label><input id="titleInput"></div>
  <div class="field"><label for="subtitleInput">부제</label><input id="subtitleInput"></div>
@@ -221,6 +257,7 @@ function baseScene(){
   return {version:3,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'left',autoFit:true},subtitle:{x:725,y:98,w:950,h:38,size:20,align:'left',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.5,gap:38,pad:12},nodes,edges};
 }
 let activeHeading=null,headingDrag=null;
+let marqueeMode=false,marquee=null;
 let scene=baseScene(),mode='structured',rawDoc=null,rawSelected=null,selected=new Set(),edgeSelect=null,connecting=false,connectSource=null,zoom=0.8,history=[],future=[],drag=null,historyLast=0;
 const esc=s=>String(s??'');
 function cloneScene(){return JSON.parse(JSON.stringify(scene))}
@@ -252,8 +289,8 @@ function measureFlowText(text,fontSize,weight){
 }
 function fitRectToText(node){
  if(!node||node.type!=='rect')return false;
- const fs=Number(scene.settings.fontMain)||23,ss=Number(scene.settings.fontSub)||18;
- const pad=Math.max(12,Number(scene.settings.pad)||12);
+ const fs=Number(node.fontMain||scene.settings.fontMain)||23,ss=Number(node.fontSub||scene.settings.fontSub)||18;
+ const pad=Math.max(12,Number(node.pad||scene.settings.pad)||12);
  // 3mm (~12 CSS px) of clear space on all four sides.
  const textWidth=Math.max(measureFlowText(node.title||'',fs,750),measureFlowText(node.sub||'',ss,400));
  const inset=pad;
@@ -268,7 +305,7 @@ function fitRectToText(node){
 function fitAllRects(){let count=0;for(const node of scene.nodes)if(fitRectToText(node))count++;return count;}
 
 function drawText(group,n){
- const fs=Number(scene.settings.fontMain)||23,ss=Number(scene.settings.fontSub)||18;
+ const fs=Number(n.fontMain||scene.settings.fontMain)||23,ss=Number(n.fontSub||scene.settings.fontSub)||18;
  const hasSub=Boolean(n.sub);
  let titleSize=fs,subSize=ss;
  if(n.type==='diamond'){
@@ -297,7 +334,7 @@ function refineRenderedText(svg){
   const texts=Array.from(g.querySelectorAll('text'));
   if(!texts.length)continue;
   if(n.type==='rect'&&$('autoFitText')?.checked){
-   const pad=Math.max(12,Number(scene.settings.pad)||12);
+   const pad=Math.max(12,Number(n.pad||scene.settings.pad)||12);
    let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
    for(const t of texts){
     try{const b=t.getBBox();left=Math.min(left,b.x);right=Math.max(right,b.x+b.width);
@@ -331,7 +368,7 @@ function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.repl
  const eg=sEl('g',{id:'edges'});scene.edges.forEach(e=>{let pts=edgePath(e);if(!pts)return;const g=sEl('g',{'data-edge':e.id,class:'edge'+(edgeSelect===e.id?' selected':'')});g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'#5A1E1E','stroke-width':Math.max(3.5,scene.settings.stroke),'stroke-linejoin':'round','stroke-linecap':'round','marker-end':'url(#arrowhead)'}));g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'transparent','stroke-width':Math.max(22,32/Math.max(zoom,.2)),'pointer-events':'stroke',class:'edge-hit'}));if(e.label){const [sx,sy]=pts[0], [nx,ny]=pts[1];const lx=sx===nx?sx+45:(sx+nx)/2,ly=sy===ny?sy-13:(sy+ny)/2;
  g.append(sEl('text',{x:lx,y:ly,'text-anchor':'middle','font-size':17,'font-weight':750,fill:'#5A1E1E',class:'edge-label'},e.label));}
  eg.append(g)});s.append(eg);
- const ng=sEl('g',{id:'nodes'});scene.nodes.forEach(n=>{const g=sEl('g',{'data-node':n.id,class:'node'+(selected.has(n.id)?' selected':'')});let shape;if(n.type==='diamond'){const pts=[[n.x,n.y-n.h/2],[n.x+n.w/2,n.y],[n.x,n.y+n.h/2],[n.x-n.w/2,n.y]];shape=sEl('polygon',{points:pts.map(p=>p.join(',')).join(' '),fill:n.fill,stroke:'#1F3A5F','stroke-width':scene.settings.stroke,'stroke-linejoin':'round',class:'node-shape','pointer-events':'all'});}else{shape=sEl('rect',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,fill:n.fill,stroke:'#1F3A5F','stroke-width':scene.settings.stroke,class:'node-shape','pointer-events':'all'});}g.append(shape);drawText(g,n);ng.append(g)});s.append(ng);
+ const ng=sEl('g',{id:'nodes'});scene.nodes.forEach(n=>{const g=sEl('g',{'data-node':n.id,class:'node'+(selected.has(n.id)?' selected':'')});let shape;if(n.type==='diamond'){const pts=[[n.x,n.y-n.h/2],[n.x+n.w/2,n.y],[n.x,n.y+n.h/2],[n.x-n.w/2,n.y]];shape=sEl('polygon',{points:pts.map(p=>p.join(',')).join(' '),fill:n.fill,stroke:n.strokeColor||'#1F3A5F','stroke-width':n.strokeWidth||scene.settings.stroke,'stroke-linejoin':'round',class:'node-shape','pointer-events':'all'});}else{shape=sEl('rect',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,fill:n.fill,stroke:n.strokeColor||'#1F3A5F','stroke-width':n.strokeWidth||scene.settings.stroke,class:'node-shape','pointer-events':'all'});}g.append(shape);drawText(g,n);ng.append(g)});s.append(ng);
  // Check the SVG's actual rendered glyph bounds, not just Canvas estimates.
  if(refineRenderedText(s)){return render();}
  drawEditHandles(s);
@@ -360,7 +397,7 @@ $('canvas').addEventListener('pointerdown',evt=>{if(evt.button!==0)return;if(act
  if(connecting){if(!grp)return;const id=grp.dataset.node;if(!connectSource){connectSource=id;toast('끝 도형을 선택하세요.')}else{if(id===connectSource){toast('다른 노드를 선택하세요');return;}checkpoint();let a=getNode(connectSource),b=getNode(id);let fp=b.y>a.y?'bottom':b.x>a.x?'right':'left';let tp=b.y>a.y?'top':b.x>a.x?'left':'right';scene.edges.push({id:'e'+Date.now().toString(36),from:connectSource,to:id,fp,tp,label:'',route:'auto'});connecting=false;connectSource=null;$('addEdge').classList.remove('primary');updateUI();toast('연결선을 추가했습니다.');}return;}
  if(grp){const id=grp.dataset.node;if(evt.shiftKey||visioMultiSelect){if(selected.has(id))selected.delete(id);else selected.add(id)}else if(!selected.has(id)){selected.clear();selected.add(id)}edgeSelect=null;drag={point:posFromPointer(evt),positions:[...selected].map(id=>({id,x:getNode(id).x,y:getNode(id).y})),moved:false,history:false};$('canvas').setPointerCapture(evt.pointerId);updateUI();highlightStatus();evt.preventDefault();}
  else if(ed){selected.clear();edgeSelect=ed.dataset.edge;updateUI();highlightStatus();evt.preventDefault();}
- else{selected.clear();edgeSelect=null;updateUI();highlightStatus();}});
+ else{if(!marqueeMode){selected.clear();edgeSelect=null;updateUI();highlightStatus();}}});
 $('canvas').addEventListener('pointermove',evt=>{if(!drag)return;const p=posFromPointer(evt);if(drag.raw){const dx=p.x-drag.origin.x,dy=p.y-drag.origin.y;if(Math.abs(dx)+Math.abs(dy)>2){drag.target.setAttribute('transform',`translate(${dx} ${dy}) ${drag.transform}`);drag.moved=true;}return}
  const dx=p.x-drag.point.x,dy=p.y-drag.point.y;if(Math.abs(dx)+Math.abs(dy)<2&&!drag.moved)return;
  if(!drag.history){checkpoint();drag.history=true;}for(const a of drag.positions){const n=getNode(a.id);if(n){n.x=Math.round((a.x+dx)/5)*5;n.y=Math.round((a.y+dy)/5)*5;}}drag.moved=true;render();evt.preventDefault()});
@@ -382,7 +419,7 @@ $('autoLayout').onclick=()=>{if(mode!=='structured')return;checkpoint();let main
 $('alignX').onclick=()=>{if(mode!=='structured'||selected.size<2){toast('Shift+클릭으로 2개 이상 선택하세요.');return;}checkpoint();let list=[...selected].map(getNode);let x=list.reduce((a,n)=>a+n.x,0)/list.length;list.forEach(n=>n.x=Math.round(x));updateUI()};
 $('distributeY').onclick=()=>{if(mode!=='structured'||selected.size<3){toast('세로 정렬은 노드 3개 이상 선택하세요.');return;}checkpoint();const ns=[...selected].map(getNode).sort((a,b)=>a.y-b.y);let start=ns[0].y,end=ns.at(-1).y;ns.forEach((n,i)=>n.y=Math.round(start+(end-start)*i/(ns.length-1)));updateUI()};
 $('resetScene').onclick=()=>{if(!confirm('현재 도면을 초기화할까요? 필요하면 먼저 JSON으로 저장하세요.'))return;scene=baseScene();history=[];future=[];selected.clear();edgeSelect=null;mode='structured';rawDoc=null;$('modeLabel').textContent='편집 모드: 노드';updateUI();fitCanvas();toast('01장 기본 예제를 불러왔습니다.')};
-function svgString(){const s=$('canvas');const copy=s.cloneNode(true);copy.querySelectorAll('#vizio-overlays,.edge-hit,#vizio-preview').forEach(el=>el.remove());copy.querySelectorAll('.selected').forEach(g=>g.classList.remove('selected'));copy.querySelectorAll('path').forEach(p=>{if(p.closest('.edge')){p.setAttribute('stroke','#5A1E1E');p.setAttribute('stroke-width',String(Math.max(3.5,scene.settings.stroke)))}});copy.querySelectorAll('.node-shape').forEach(p=>{p.removeAttribute('filter');p.setAttribute('stroke','#1F3A5F');p.setAttribute('stroke-width',String(scene.settings.stroke))});copy.removeAttribute('style');copy.setAttribute('xmlns',NS);copy.setAttribute('version','1.1');copy.setAttribute('width',s.getAttribute('width'));copy.setAttribute('height',s.getAttribute('height'));return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(copy)}
+function svgString(){const s=$('canvas');const copy=s.cloneNode(true);copy.querySelectorAll('#vizio-overlays,.edge-hit,#vizio-preview').forEach(el=>el.remove());copy.querySelectorAll('.selected').forEach(g=>g.classList.remove('selected'));copy.querySelectorAll('path').forEach(p=>{if(p.closest('.edge')){p.setAttribute('stroke','#5A1E1E');p.setAttribute('stroke-width',String(Math.max(3.5,scene.settings.stroke)))}});copy.querySelectorAll('.node-shape').forEach(p=>{p.removeAttribute('filter');const g=p.closest('[data-node]');const node=g&&getNode(g.dataset.node);p.setAttribute('stroke',node?.strokeColor||'#1F3A5F');p.setAttribute('stroke-width',String(node?.strokeWidth||scene.settings.stroke))});copy.removeAttribute('style');copy.setAttribute('xmlns',NS);copy.setAttribute('version','1.1');copy.setAttribute('width',s.getAttribute('width'));copy.setAttribute('height',s.getAttribute('height'));return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(copy)}
 function download(text,type,name){const blob=new Blob([text],{type}),a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 $('saveSVG').onclick=()=>{download(svgString(),'image/svg+xml;charset=utf-8','P2_01_Main_Flow_edited.svg');toast('SVG 파일을 저장했습니다.')};
 $('saveJSON').onclick=()=>{if(mode!=='structured'){toast('외부 SVG는 SVG로 저장해 주세요.');return;}download(JSON.stringify(scene,null,2),'application/json;charset=utf-8','P2_01_Flow_Project.json');toast('편집용 JSON 작업 파일 저장')};
@@ -479,17 +516,36 @@ let pan=null;
 $('viewport').addEventListener('pointerdown',e=>{
   if(e.target.closest?.('[data-node],[data-edge],[data-resize],[data-bend],[data-end-role],[data-connect-port],[data-heading],[data-heading-handle]'))return;
   if(e.button!==0)return;
+  if(marqueeMode&&mode==='structured'){
+    const p=posFromPointer(e);
+    marquee={start:p,end:p,pointerId:e.pointerId};
+    if(!e.shiftKey)selected.clear();
+    edgeSelect=null;render();
+    $('viewport').setPointerCapture(e.pointerId);
+    e.preventDefault();return;
+  }
   pan={x:e.clientX,y:e.clientY,left:$('viewport').scrollLeft,top:$('viewport').scrollTop};
   $('viewport').setPointerCapture(e.pointerId);
 },{capture:true});
 $('viewport').addEventListener('pointermove',e=>{
+  if(marquee){marquee.end=posFromPointer(e);showRubberBand();e.preventDefault();return;}
   if(!pan)return;
   $('viewport').scrollLeft=pan.left-(e.clientX-pan.x);
   $('viewport').scrollTop=pan.top-(e.clientY-pan.y);
 },{capture:true});
-const endPan=()=>pan=null;
+const endPan=(e)=>{
+ if(marquee){
+  const a=marquee.start,b=marquee.end;
+  const left=Math.min(a.x,b.x),right=Math.max(a.x,b.x),top=Math.min(a.y,b.y),bottom=Math.max(a.y,b.y);
+  for(const n of scene.nodes){
+   if(n.x+n.w/2>=left&&n.x-n.w/2<=right&&n.y+n.h/2>=top&&n.y-n.h/2<=bottom)selected.add(n.id);
+  }
+  marquee=null;updateUI();return;
+ }
+ pan=null;
+};
 $('viewport').addEventListener('pointerup',endPan,{capture:true});
-$('viewport').addEventListener('pointercancel',endPan,{capture:true});
+$('viewport').addEventListener('pointercancel',()=>{marquee=null;pan=null;render()},{capture:true});
 const oldFit=fitCanvas;
 fitCanvas=function(){oldFit();syncKnobs()};
 syncKnobs();
@@ -915,6 +971,67 @@ splitter.addEventListener('keydown',e=>{
  if(e.key==='End'){setPanelWidth(980,true);e.preventDefault();}
 });
 window.addEventListener('resize',()=>setPanelWidth(panelWidth));
+
+
+/* v2.2 multi-selection, selection rectangle, and batch style editing */
+function showRubberBand(){
+ const svg=$('canvas'),old=svg.querySelector('#rubberBand');if(old)old.remove();
+ if(!marquee)return;
+ const a=marquee.start,b=marquee.end;
+ svg.append(sEl('rect',{id:'rubberBand',x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),
+   width:Math.abs(a.x-b.x),height:Math.abs(a.y-b.y)}));
+}
+$('marqueeBtn').onclick=()=>{
+ marqueeMode=!marqueeMode;$('marqueeBtn').classList.toggle('active',marqueeMode);
+ $('marqueeBtn').setAttribute('aria-pressed',String(marqueeMode));
+ toast(marqueeMode?'빈 공간에서 끌어 선택 영역을 그리세요.':'영역 선택 종료');
+};
+function selectBoxes(onlyRect=false){
+ if(mode!=='structured')return;
+ selected=new Set(scene.nodes.filter(n=>!onlyRect||n.type==='rect').map(n=>n.id));
+ edgeSelect=null;activeHeading=null;updateUI();
+ toast(selected.size+'개 박스를 선택했습니다.');
+}
+$('selectAllBoxes').onclick=()=>selectBoxes();
+$('clearBoxSelection').onclick=$('batchClear').onclick=()=>{selected.clear();edgeSelect=null;updateUI()};
+function updateBatchPanel(){
+ const panel=$('batchPanel');
+ panel.hidden=mode!=='structured'||selected.size<2;
+ $('batchCount').textContent=selected.size+'개 박스 선택';
+}
+const originalBatchUI=updateUI;
+updateUI=function(){originalBatchUI();updateBatchPanel()};
+const batchGet=id=>$(id);
+$('applyBatch').onclick=()=>{
+ if(mode!=='structured'||selected.size<2)return;
+ const candidates=[...selected].map(getNode).filter(Boolean);
+ const fMain=Number(batchGet('batchFontMain').value),fSub=Number(batchGet('batchFontSub').value);
+ const padding=Number(batchGet('batchPad').value);
+ const outlineWidth=Number(batchGet('batchOutlineWidth').value);
+ if(batchGet('batchDoFonts').checked&&(!Number.isFinite(fMain)||fMain<10||fMain>80||!Number.isFinite(fSub)||fSub<9||fSub>60)){toast('글자 크기 범위를 확인해 주세요.');return;}
+ if(batchGet('batchDoPadding').checked&&(!Number.isFinite(padding)||padding<12||padding>80)){toast('여백은 12~80px 범위입니다.');return;}
+ if(batchGet('batchDoOutline').checked&&(!Number.isFinite(outlineWidth)||outlineWidth<1||outlineWidth>12)){toast('윤곽선 굵기를 확인해 주세요.');return;}
+ checkpoint();
+ for(const n of candidates){
+  if(batchGet('batchDoFonts').checked){n.fontMain=fMain;n.fontSub=fSub}
+  if(batchGet('batchDoPadding').checked)n.pad=padding;
+  if(batchGet('batchDoOutline').checked){n.strokeColor=batchGet('batchOutlineColor').value;n.strokeWidth=outlineWidth}
+  if(batchGet('batchDoFill').checked)n.fill=batchGet('batchTransparent').checked?'none':batchGet('batchFill').value;
+  if(batchGet('batchFit').checked&&n.type==='rect')fitRectToText(n);
+ }
+ updateUI();toast(candidates.length+'개 박스에 스타일을 적용했습니다. (실행 취소 가능)');
+};
+$('batchResetStyle').onclick=()=>{
+ if(mode!=='structured'||selected.size<2)return;
+ checkpoint();
+ for(const n of scene.nodes.filter(n=>selected.has(n.id))){
+  delete n.fontMain;delete n.fontSub;delete n.pad;delete n.strokeColor;delete n.strokeWidth;
+  n.fill='none';
+  if(n.type==='rect')fitRectToText(n);
+ }
+ updateUI();toast('선택 박스만 기본 스타일로 복원했습니다.');
+};
+updateBatchPanel();
 
 </script>
 </body></html>
