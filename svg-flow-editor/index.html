@@ -15,7 +15,7 @@ button:disabled{opacity:.4;cursor:not-allowed}.sep{height:28px;border-left:1px s
 input,select,textarea{font:inherit;color:#20314d;border:1px solid #b8c3d1;border-radius:4px;background:white;padding:7px 8px;min-width:0;width:100%}
 input[type=number]{font-variant-numeric:tabular-nums}input[type=color]{height:35px;padding:3px}
 .filebtn input{display:none}
-.layout{display:grid;grid-template-columns:minmax(0,1fr) 305px;height:calc(100dvh - 109px);min-height:490px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 440px;height:calc(100dvh - 109px);min-height:490px}
 .stage{overflow:hidden;position:relative;background:#d9dfe8}
 .stage:before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(#aeb9cb 0.7px, transparent 0.7px);background-size:16px 16px}
 #viewport{position:absolute;inset:0;overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:18px;touch-action:pan-x pan-y}
@@ -85,10 +85,14 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 .heading-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .heading-buttons button{min-height:44px;font-weight:700}
 #headingSize{width:100%;height:40px;accent-color:#4635b1}
+
+/* v1.8: wider properties inspector, independent scroll, accessible controls */
+@media(min-width:871px){.layout{grid-template-columns:minmax(0,1fr) 440px}}
+@media(min-width:871px){aside{padding:18px 22px 40px}.twocol{gap:14px}.knob{grid-template-columns:42px minmax(80px,1fr) 42px 76px;gap:8px}.knob input[type=number]{width:76px}}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.7</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.8</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -107,7 +111,7 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
  <div class="field"><label for="subtitleInput">부제</label><input id="subtitleInput"></div>
  <div class="twocol"><div class="field"><label for="pageW">도면 너비</label><input type="number" id="pageW" min="700" max="7000" step="20"></div><div class="field"><label for="fontMain">기본 글자(px)</label><input type="number" id="fontMain" min="12" max="50"></div></div>
  <div class="twocol"><div class="field"><label for="fontSub">보조 글자(px)</label><input type="number" id="fontSub" min="10" max="40"></div><div class="field"><label for="strokeW">윤곽선(px)</label><input type="number" id="strokeW" min="1" max="10" step="0.2"></div></div>
- <div class="twocol"><div class="field"><label for="gapY">세로 간격(px)</label><input type="number" id="gapY" min="20" max="130"></div><div class="field"><label for="padNode">내부 여백(px)</label><input type="number" id="padNode" min="8" max="60"></div></div>
+ <div class="twocol"><div class="field"><label for="gapY">세로 간격(px)</label><input type="number" id="gapY" min="20" max="130"></div><div class="field"><label for="padNode">내부 여백(px)</label><input type="number" id="padNode" min="12" max="60"></div></div>
  <button id="fitAllText" style="width:100%">모든 직사각형을 글자 크기에 맞춤</button>
  <button id="centerTitle" style="width:100%">제목 중앙 및 페이지 여백 정리</button>
  <div class="note">실제 도면 폭에 맞춰 제목을 중앙으로 놓습니다. <b>내부 여백 8px ≈ 2mm</b>(96dpi 기준).</div>
@@ -167,10 +171,10 @@ function baseScene(){
   ];
   const edge=(id,from,to,fp,tp,label='',route='auto')=>({id,from,to,fp,tp,label,route});
   const edges=[edge('e1','start','declare','bottom','top'),edge('e2','declare','intro','bottom','top'),edge('e3','intro','status','bottom','top'),edge('e4','status','receive','bottom','top'),edge('e5','receive','d1','bottom','top'),edge('e6','d1','cmd','right','left','예'),edge('e7','d1','d2','bottom','top','아니오'),edge('e8','d2','err1','right','left','예'),edge('e9','d2','d3','bottom','top','아니오'),edge('e10','d3','err2','right','left','예'),edge('e11','d3','repeat','bottom','top','아니오'),edge('e12','cmd','repeat','right','right','','loopRight'),edge('e13','err1','repeat','right','right','','loopRight'),edge('e14','err2','repeat','right','right','','loopRight'),edge('e15','repeat','receive','left','left','반복','loopLeft')];
-  return {version:3,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'left',autoFit:true},subtitle:{x:725,y:98,w:950,h:38,size:20,align:'left',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.4,gap:38,pad:12},nodes,edges};
+  return {version:3,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'left',autoFit:true},subtitle:{x:725,y:98,w:950,h:38,size:20,align:'left',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.5,gap:38,pad:12},nodes,edges};
 }
 let activeHeading=null,headingDrag=null;
-let scene=baseScene(),mode='structured',rawDoc=null,rawSelected=null,selected=new Set(),edgeSelect=null,connecting=false,connectSource=null,zoom=0.7,history=[],future=[],drag=null,historyLast=0;
+let scene=baseScene(),mode='structured',rawDoc=null,rawSelected=null,selected=new Set(),edgeSelect=null,connecting=false,connectSource=null,zoom=0.8,history=[],future=[],drag=null,historyLast=0;
 const esc=s=>String(s??'');
 function cloneScene(){return JSON.parse(JSON.stringify(scene))}
 function checkpoint(){if(mode!=='structured')return;history.push(cloneScene());if(history.length>70)history.shift();future=[];updateUndo()}
@@ -203,10 +207,10 @@ function fitRectToText(node){
  if(!node||node.type!=='rect')return false;
  const fs=Number(scene.settings.fontMain)||23,ss=Number(scene.settings.fontSub)||18;
  const pad=Math.max(12,Number(scene.settings.pad)||12);
- // Use same fallback font as the SVG; reserve 10% for platform font differences.
+ // 3mm (~12 CSS px) of clear space on all four sides.
  const textWidth=Math.max(measureFlowText(node.title||'',fs,750),measureFlowText(node.sub||'',ss,400));
- const inset=pad+8;
- const neededW=Math.ceil(((textWidth*1.10)+inset*2+12)/5)*5;
+ const inset=pad;
+ const neededW=Math.ceil(((textWidth*1.08)+inset*2)/5)*5;
  const neededH=node.sub?Math.ceil((pad*2+fs*1.32+ss*1.45+10)/5)*5:
                           Math.ceil((pad*2+fs*1.45)/5)*5;
  const w=Math.max(150,neededW),h=Math.max(62,neededH);
@@ -218,23 +222,22 @@ function fitAllRects(){let count=0;for(const node of scene.nodes)if(fitRectToTex
 
 function drawText(group,n){
  const fs=Number(scene.settings.fontMain)||23,ss=Number(scene.settings.fontSub)||18;
- const pad=Math.max(12,Number(scene.settings.pad)||12);
  const hasSub=Boolean(n.sub);
+ let titleSize=fs,subSize=ss;
  if(n.type==='diamond'){
-  // A rhombus is narrow near its vertices. Center text in the safe middle area.
-  const usable=n.w*.56;
-  const measured=Math.max(measureFlowText(n.title||'',fs,750),measureFlowText(n.sub||'',ss,400));
-  const scale=measured>usable?usable/measured:1;
-  const df=Math.max(12,fs*scale),ds=Math.max(11,ss*scale);
-  const titleY=hasSub?n.y-ds*.18:n.y+df*.34;
-  group.appendChild(sEl('text',{x:n.x,y:titleY,'text-anchor':'middle','font-size':df,'font-weight':750,fill:'#1b293f','pointer-events':'none'},n.title||''));
-  if(hasSub)group.appendChild(sEl('text',{x:n.x,y:n.y+ds*1.12,'text-anchor':'middle','font-size':ds,'font-weight':400,fill:'#34435a','pointer-events':'none'},n.sub));
-  return;
+  const width=Math.max(measureFlowText(n.title||'',fs,750),measureFlowText(n.sub||'',ss,400));
+  const limit=n.w*.52;
+  const scale=width>limit?limit/width:1;
+  titleSize=Math.max(11,fs*scale);
+  subSize=Math.max(10,ss*scale);
  }
- const x=n.x-n.w/2+pad+8;
- const titleY=hasSub?n.y-fs*.18:n.y+fs*.35;
- group.appendChild(sEl('text',{x,y:titleY,'text-anchor':'start','font-size':fs,'font-weight':750,fill:'#1b293f','pointer-events':'none'},n.title||''));
- if(hasSub)group.appendChild(sEl('text',{x,y:n.y+ss*1.22,'text-anchor':'start','font-size':ss,'font-weight':400,fill:'#34435a','pointer-events':'none'},n.sub));
+ // Both lines are horizontally centered. Their combined visual block is vertically centered.
+ const gap=6;
+ const titleY=hasSub?n.y-(subSize+gap)/2:n.y;
+ const subY=n.y+(titleSize+gap)/2;
+ const common={'text-anchor':'middle','dominant-baseline':'middle','pointer-events':'none'};
+ group.appendChild(sEl('text',{x:n.x,y:titleY,...common,'font-size':titleSize,'font-weight':750,fill:'#172439'},n.title||''));
+ if(hasSub)group.appendChild(sEl('text',{x:n.x,y:subY,...common,'font-size':subSize,'font-weight':400,fill:'#273e5e'},n.sub));
 }
 /* v1.7: render-aware geometry repair. Keep all existing node centers and edges. */
 let geometryPass=0;
@@ -247,44 +250,41 @@ function refineRenderedText(svg){
   const texts=Array.from(g.querySelectorAll('text'));
   if(!texts.length)continue;
   if(n.type==='rect'&&$('autoFitText')?.checked){
-   const pad=Math.max(12,Number(scene.settings.pad)||12)+8;
-   const actual=Math.max(...texts.map(t=>{try{return t.getBBox().width}catch{return 0}}));
-   if(actual>0){
-    const neededW=Math.ceil((actual+pad*2+8)/5)*5;
-    if(neededW>n.w+1){n.w=neededW;changed=true;}
+   const pad=Math.max(12,Number(scene.settings.pad)||12);
+   let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
+   for(const t of texts){
+    try{const b=t.getBBox();left=Math.min(left,b.x);right=Math.max(right,b.x+b.width);
+        top=Math.min(top,b.y);bottom=Math.max(bottom,b.y+b.height);}catch{}
    }
-   let upper=Infinity,lower=-Infinity;
-   for(const t of texts){try{const b=t.getBBox();upper=Math.min(upper,b.y);lower=Math.max(lower,b.y+b.height)}catch{}}
-   if(Number.isFinite(upper)&&Number.isFinite(lower)){
-    const actualHeight=(lower-upper)+pad*2;
-    const neededH=Math.ceil(actualHeight/5)*5;
-    if(neededH>n.h+1){n.h=neededH;changed=true;}
+   if(Number.isFinite(left)&&Number.isFinite(right)&&Number.isFinite(top)&&Number.isFinite(bottom)){
+    // Symmetric sizing makes all four margins at least 3 mm around real glyphs.
+    const w=Math.ceil((2*Math.max(n.x-left,right-n.x)+2*pad)/5)*5;
+    const h=Math.ceil((2*Math.max(n.y-top,bottom-n.y)+2*pad)/5)*5;
+    if(w>n.w+1){n.w=w;changed=true;}
+    if(h>n.h+1){n.h=h;changed=true;}
    }
   }else if(n.type==='diamond'){
-   // For a diamond, the middle 54% is the safe text lane.
-   const maxWidth=n.w*.54;
-   for(const t of texts){
-    try{
-     const width=t.getBBox().width;
-     if(width>maxWidth&&width>0){
-      const fs=parseFloat(t.getAttribute('font-size'))||18;
-      t.setAttribute('font-size',String(Math.max(10,fs*maxWidth/width*.96)));
-     }
-    }catch{}
-   }
+   const limit=n.w*.50;
+   for(const tx of texts)try{
+    const box=tx.getBBox();
+    if(box.width>limit&&box.width>0){
+     const fs=parseFloat(tx.getAttribute('font-size'))||18;
+     tx.setAttribute('font-size',String(Math.max(10,fs*limit/box.width*.96)));
+    }
+   }catch{}
   }
  }
  if(changed){geometryPass++;return true;}
  geometryPass=0;return false;
 }
 function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.replaceChildren();s.setAttribute('width',scene.width);s.setAttribute('height',scene.height);s.setAttribute('viewBox',`0 0 ${scene.width} ${scene.height}`);
- const defs=sEl('defs');const marker=sEl('marker',{id:'arrowhead',markerWidth:10,markerHeight:10,refX:9,refY:5,orient:'auto',markerUnits:'userSpaceOnUse'});marker.appendChild(sEl('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#233247'}));defs.append(marker);s.append(defs);
+ const defs=sEl('defs');const marker=sEl('marker',{id:'arrowhead',markerWidth:16,markerHeight:16,refX:14,refY:8,orient:'auto',markerUnits:'userSpaceOnUse'});marker.appendChild(sEl('path',{d:'M 0 0 L 16 8 L 0 16 z',fill:'#5A1E1E'}));defs.append(marker);s.append(defs);
  s.append(sEl('rect',{x:0,y:0,width:scene.width,height:scene.height,fill:'#fff'}));
  drawHeadingBoxes(s);
- const eg=sEl('g',{id:'edges'});scene.edges.forEach(e=>{let pts=edgePath(e);if(!pts)return;const g=sEl('g',{'data-edge':e.id,class:'edge'+(edgeSelect===e.id?' selected':'')});g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'#233247','stroke-width':scene.settings.stroke,'stroke-linejoin':'round','stroke-linecap':'round','marker-end':'url(#arrowhead)'}));g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'transparent','stroke-width':Math.max(22,32/Math.max(zoom,.2)),'pointer-events':'stroke',class:'edge-hit'}));if(e.label){const [sx,sy]=pts[0], [nx,ny]=pts[1];const lx=sx===nx?sx+45:(sx+nx)/2,ly=sy===ny?sy-13:(sy+ny)/2;
- g.append(sEl('text',{x:lx,y:ly,'text-anchor':'middle','font-size':17,'font-weight':750,fill:'#25334a',class:'edge-label'},e.label));}
+ const eg=sEl('g',{id:'edges'});scene.edges.forEach(e=>{let pts=edgePath(e);if(!pts)return;const g=sEl('g',{'data-edge':e.id,class:'edge'+(edgeSelect===e.id?' selected':'')});g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'#5A1E1E','stroke-width':Math.max(3.5,scene.settings.stroke),'stroke-linejoin':'round','stroke-linecap':'round','marker-end':'url(#arrowhead)'}));g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'transparent','stroke-width':Math.max(22,32/Math.max(zoom,.2)),'pointer-events':'stroke',class:'edge-hit'}));if(e.label){const [sx,sy]=pts[0], [nx,ny]=pts[1];const lx=sx===nx?sx+45:(sx+nx)/2,ly=sy===ny?sy-13:(sy+ny)/2;
+ g.append(sEl('text',{x:lx,y:ly,'text-anchor':'middle','font-size':17,'font-weight':750,fill:'#5A1E1E',class:'edge-label'},e.label));}
  eg.append(g)});s.append(eg);
- const ng=sEl('g',{id:'nodes'});scene.nodes.forEach(n=>{const g=sEl('g',{'data-node':n.id,class:'node'+(selected.has(n.id)?' selected':'')});let shape;if(n.type==='diamond'){const pts=[[n.x,n.y-n.h/2],[n.x+n.w/2,n.y],[n.x,n.y+n.h/2],[n.x-n.w/2,n.y]];shape=sEl('polygon',{points:pts.map(p=>p.join(',')).join(' '),fill:n.fill,stroke:'#62491d','stroke-width':scene.settings.stroke,'stroke-linejoin':'round',class:'node-shape','pointer-events':'all'});}else{shape=sEl('rect',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,fill:n.fill,stroke:'#1b293d','stroke-width':scene.settings.stroke,class:'node-shape','pointer-events':'all'});}g.append(shape);drawText(g,n);ng.append(g)});s.append(ng);
+ const ng=sEl('g',{id:'nodes'});scene.nodes.forEach(n=>{const g=sEl('g',{'data-node':n.id,class:'node'+(selected.has(n.id)?' selected':'')});let shape;if(n.type==='diamond'){const pts=[[n.x,n.y-n.h/2],[n.x+n.w/2,n.y],[n.x,n.y+n.h/2],[n.x-n.w/2,n.y]];shape=sEl('polygon',{points:pts.map(p=>p.join(',')).join(' '),fill:n.fill,stroke:'#1F3A5F','stroke-width':scene.settings.stroke,'stroke-linejoin':'round',class:'node-shape','pointer-events':'all'});}else{shape=sEl('rect',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,fill:n.fill,stroke:'#1F3A5F','stroke-width':scene.settings.stroke,class:'node-shape','pointer-events':'all'});}g.append(shape);drawText(g,n);ng.append(g)});s.append(ng);
  // Check the SVG's actual rendered glyph bounds, not just Canvas estimates.
  if(refineRenderedText(s)){return render();}
  drawEditHandles(s);
@@ -328,14 +328,14 @@ $('delete').onclick=deleteSelected;$('undo').onclick=undo;$('redo').onclick=redo
 function setZoom(v){zoom=Math.min(1.75,Math.max(.2,v));render()}
 function updateZoom(){$('zoomText').textContent=Math.round(zoom*100)+'%';$('zoomValue').textContent=Math.round(zoom*100)+'%';$('zoomRange').value=Math.round(zoom*100)}
 $('zoomIn').onclick=()=>setZoom(zoom+.1);$('zoomOut').onclick=()=>setZoom(zoom-.1);$('zoomRange').oninput=e=>setZoom(+e.target.value/100);
-function fitCanvas(){let s=$('viewport'),w=mode==='raw'?Number($('canvas').getAttribute('width')):scene.width;setZoom(Math.max(.2,Math.min(1,(s.clientWidth-40)/w)));s.scrollTop=0;s.scrollLeft=0;}
+function fitCanvas(){let s=$('viewport'),w=mode==='raw'?Number($('canvas').getAttribute('width')):scene.width;setZoom(Math.max(.2,Math.min(.8,(s.clientWidth-40)/w)));s.scrollTop=0;s.scrollLeft=0;}
 $('fit').onclick=fitCanvas;
 $('centerTitle').onclick=()=>{if(mode!=='structured')return;checkpoint();let all=scene.nodes;if(!all.length)return;let minx=Math.min(...all.map(n=>n.x-n.w/2)),maxx=Math.max(...all.map(n=>n.x+n.w/2));let shift=scene.width/2-(minx+maxx)/2;for(const n of all)n.x=Math.round(n.x+shift);scene.height=Math.max(600,Math.max(...all.map(n=>n.y+n.h/2))+70);updateUI();toast('도면의 중앙축과 여백을 정리했습니다.')};
 $('autoLayout').onclick=()=>{if(mode!=='structured')return;checkpoint();let main=scene.nodes.filter(n=>n.x<scene.width*.58).sort((a,b)=>a.y-b.y),side=scene.nodes.filter(n=>n.x>=scene.width*.58).sort((a,b)=>a.y-b.y);let maxW=Math.max(...main.map(n=>n.w),500);let mx=scene.width*.43,rx=scene.width*.77;let y=158;for(const n of main){n.x=mx;n.y=y;y+=n.h+scene.settings.gap;}for(const n of side){const src=scene.edges.find(e=>e.to===n.id&&e.fp==='right');const an=src&&getNode(src.from);n.x=rx;if(an)n.y=an.y;}scene.height=Math.max(scene.height,y+80);updateUI();toast('수직 배치를 적용했습니다. 연결선도 자동 재계산됩니다.')};
 $('alignX').onclick=()=>{if(mode!=='structured'||selected.size<2){toast('Shift+클릭으로 2개 이상 선택하세요.');return;}checkpoint();let list=[...selected].map(getNode);let x=list.reduce((a,n)=>a+n.x,0)/list.length;list.forEach(n=>n.x=Math.round(x));updateUI()};
 $('distributeY').onclick=()=>{if(mode!=='structured'||selected.size<3){toast('세로 정렬은 노드 3개 이상 선택하세요.');return;}checkpoint();const ns=[...selected].map(getNode).sort((a,b)=>a.y-b.y);let start=ns[0].y,end=ns.at(-1).y;ns.forEach((n,i)=>n.y=Math.round(start+(end-start)*i/(ns.length-1)));updateUI()};
 $('resetScene').onclick=()=>{if(!confirm('현재 도면을 초기화할까요? 필요하면 먼저 JSON으로 저장하세요.'))return;scene=baseScene();history=[];future=[];selected.clear();edgeSelect=null;mode='structured';rawDoc=null;$('modeLabel').textContent='편집 모드: 노드';updateUI();fitCanvas();toast('01장 기본 예제를 불러왔습니다.')};
-function svgString(){const s=$('canvas');const copy=s.cloneNode(true);copy.querySelectorAll('#vizio-overlays,.edge-hit,#vizio-preview').forEach(el=>el.remove());copy.querySelectorAll('.selected').forEach(g=>g.classList.remove('selected'));copy.querySelectorAll('path').forEach(p=>{if(p.closest('.edge')){p.setAttribute('stroke','#233247');p.setAttribute('stroke-width',String(scene.settings.stroke))}});copy.querySelectorAll('.node-shape').forEach(p=>{p.removeAttribute('filter');p.setAttribute('stroke',p.tagName.toLowerCase()==='polygon'?'#62491d':'#1b293d');p.setAttribute('stroke-width',String(scene.settings.stroke))});copy.removeAttribute('style');copy.setAttribute('xmlns',NS);copy.setAttribute('version','1.1');copy.setAttribute('width',s.getAttribute('width'));copy.setAttribute('height',s.getAttribute('height'));return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(copy)}
+function svgString(){const s=$('canvas');const copy=s.cloneNode(true);copy.querySelectorAll('#vizio-overlays,.edge-hit,#vizio-preview').forEach(el=>el.remove());copy.querySelectorAll('.selected').forEach(g=>g.classList.remove('selected'));copy.querySelectorAll('path').forEach(p=>{if(p.closest('.edge')){p.setAttribute('stroke','#5A1E1E');p.setAttribute('stroke-width',String(Math.max(3.5,scene.settings.stroke)))}});copy.querySelectorAll('.node-shape').forEach(p=>{p.removeAttribute('filter');p.setAttribute('stroke','#1F3A5F');p.setAttribute('stroke-width',String(scene.settings.stroke))});copy.removeAttribute('style');copy.setAttribute('xmlns',NS);copy.setAttribute('version','1.1');copy.setAttribute('width',s.getAttribute('width'));copy.setAttribute('height',s.getAttribute('height'));return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(copy)}
 function download(text,type,name){const blob=new Blob([text],{type}),a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 $('saveSVG').onclick=()=>{download(svgString(),'image/svg+xml;charset=utf-8','P2_01_Main_Flow_edited.svg');toast('SVG 파일을 저장했습니다.')};
 $('saveJSON').onclick=()=>{if(mode!=='structured'){toast('외부 SVG는 SVG로 저장해 주세요.');return;}download(JSON.stringify(scene,null,2),'application/json;charset=utf-8','P2_01_Flow_Project.json');toast('편집용 JSON 작업 파일 저장')};
