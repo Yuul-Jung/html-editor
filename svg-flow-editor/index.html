@@ -1428,7 +1428,8 @@ $('quickPageW').addEventListener('change',()=>{
 });
 /* Organize compact property groups without removing any original control. */
 function inspectorFold(scope,id,title,fields,open=true){
- const root=$(scope).querySelector('.property-grid');
+ const root=$(scope).querySelector(':scope > .property-grid');
+ if(!root)throw new Error('속성 그룹 기본 컨테이너가 없습니다: '+scope);
  const group=document.createElement('details');
  group.className='inspector-fold';group.id=id;group.open=open;
  const summary=document.createElement('summary');summary.textContent=title;
