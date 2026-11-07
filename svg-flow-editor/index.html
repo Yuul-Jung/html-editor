@@ -119,10 +119,24 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 @media(min-width:871px) and (max-width:1190px){
   .layout{grid-template-columns:minmax(0,1fr) min(48vw,600px) !important}
 }
+
+/* v2.1: resizable split view with visible keyboard/touch handle */
+@media(min-width:871px){
+  .layout{grid-template-columns:minmax(0,1fr) 12px minmax(0,var(--inspector-width,600px)) !important;column-gap:0 !important}
+  #panelSplitter{position:relative;z-index:6;background:#c8d1dd;border-left:1px solid #acb8c9;border-right:1px solid #acb8c9;
+    cursor:col-resize;touch-action:none;user-select:none}
+  #panelSplitter::after{content:"⋮";display:flex;align-items:center;justify-content:center;
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:26px;height:76px;border:1px solid #8291a8;border-radius:10px;background:#fff;
+    color:#425371;font-weight:800;font-size:25px;box-shadow:0 1px 5px #15233c33;pointer-events:none}
+  #panelSplitter:hover,#panelSplitter:focus-visible{background:#9180d4;outline:2px solid #6a4db9;outline-offset:-2px}
+  body.resizing-panel,body.resizing-panel *{cursor:col-resize !important;user-select:none !important}
+}
+@media(max-width:870px){#panelSplitter{display:none !important}}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.0</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.1</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -134,6 +148,9 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 </div>
 <div class="layout">
 <section class="stage"><div id="viewport"><div id="work"><svg id="canvas" xmlns="http://www.w3.org/2000/svg" width="1380" height="1570" viewBox="0 0 1380 1570" aria-label="편집 가능한 수직형 플로우차트"></svg></div></div></section>
+<div id="panelSplitter" role="separator" tabindex="0" aria-orientation="vertical"
+     aria-label="오른쪽 편집창 너비 조절" aria-valuemin="320" aria-valuemax="900"
+     aria-valuenow="600" title="좌우로 드래그하여 편집창 너비 조절 · 더블클릭 초기화"></div>
 <aside>
 <h2>속성 편집 <span id="selectionTitle" style="color:#6b5ac1">· 전체 도면</span></h2>
 <div id="generalSettings">
@@ -845,6 +862,59 @@ $('resetScene').onclick=()=>{
 const originalInitFit=fitCanvas;
 fitCanvas=function(){originalInitFit();};
 updateUI();
+
+
+/* v2.1 property inspector divider: mouse, touch, keyboard, local preference */
+const splitter=$('panelSplitter');
+const layoutEl=document.querySelector('.layout');
+const PANEL_KEY='soc_svg_editor_inspector_width_v1';
+let panelWidth=600;
+const clampPanelWidth=(w)=>{
+ const available=layoutEl?.getBoundingClientRect().width||window.innerWidth;
+ const max=Math.max(320,Math.min(980,available-332));
+ return Math.round(Math.min(max,Math.max(320,Number(w)||600)));
+};
+function setPanelWidth(w,persist=false){
+ panelWidth=clampPanelWidth(w);
+ layoutEl.style.setProperty('--inspector-width',panelWidth+'px');
+ splitter.setAttribute('aria-valuenow',String(panelWidth));
+ splitter.setAttribute('aria-valuetext',panelWidth+'픽셀');
+ if(persist){try{localStorage.setItem(PANEL_KEY,String(panelWidth))}catch{}}
+}
+try{const saved=localStorage.getItem(PANEL_KEY);if(saved!==null)setPanelWidth(Number(saved));else setPanelWidth(600)}
+catch{setPanelWidth(600)}
+let panelDrag=null;
+splitter.addEventListener('pointerdown',e=>{
+ if(e.button!==0||window.innerWidth<=870)return;
+ panelDrag={pointerId:e.pointerId,x:e.clientX,width:panelWidth};
+ splitter.setPointerCapture(e.pointerId);
+ document.body.classList.add('resizing-panel');
+ e.preventDefault();
+});
+splitter.addEventListener('pointermove',e=>{
+ if(!panelDrag||e.pointerId!==panelDrag.pointerId)return;
+ setPanelWidth(panelDrag.width+panelDrag.x-e.clientX);
+ e.preventDefault();
+});
+function finishPanelDrag(e){
+ if(!panelDrag)return;
+ if(e.pointerId!==undefined&&e.pointerId!==panelDrag.pointerId)return;
+ panelDrag=null;
+ document.body.classList.remove('resizing-panel');
+ setPanelWidth(panelWidth,true);
+}
+splitter.addEventListener('pointerup',finishPanelDrag);
+splitter.addEventListener('pointercancel',finishPanelDrag);
+splitter.addEventListener('lostpointercapture',finishPanelDrag);
+splitter.addEventListener('dblclick',()=>setPanelWidth(600,true));
+splitter.addEventListener('keydown',e=>{
+ const step=e.shiftKey?50:10;
+ if(e.key==='ArrowLeft'){setPanelWidth(panelWidth+step,true);e.preventDefault();}
+ if(e.key==='ArrowRight'){setPanelWidth(panelWidth-step,true);e.preventDefault();}
+ if(e.key==='Home'){setPanelWidth(320,true);e.preventDefault();}
+ if(e.key==='End'){setPanelWidth(980,true);e.preventDefault();}
+});
+window.addEventListener('resize',()=>setPanelWidth(panelWidth));
 
 </script>
 </body></html>
