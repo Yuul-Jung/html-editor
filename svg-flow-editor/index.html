@@ -74,10 +74,11 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 #vizioMode button.is-on{background:#e6dfff;border-color:#5442b4;font-weight:750}
 #vizioHelp{font-size:12px;color:#40536f;margin:5px 0 9px;padding:8px 10px;background:#eaf2fc;border-left:3px solid #5143ad}
 @media(max-width:870px){.vizio-handle,.vizio-port,.vizio-end,.vizio-bend{stroke-width:4}#vizioMode button{min-height:44px}}
+.auto-fit-field{display:flex;flex-direction:column;gap:10px}.auto-fit-toggle{display:flex;align-items:center;gap:9px;font-weight:700}.auto-fit-toggle input{width:22px;height:22px;accent-color:#4635b1}.auto-fit-field button{min-height:44px;border-color:#6554ac;font-weight:700}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.3</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.4</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -97,6 +98,7 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
  <div class="twocol"><div class="field"><label for="pageW">도면 너비</label><input type="number" id="pageW" min="700" max="7000" step="20"></div><div class="field"><label for="fontMain">기본 글자(px)</label><input type="number" id="fontMain" min="12" max="50"></div></div>
  <div class="twocol"><div class="field"><label for="fontSub">보조 글자(px)</label><input type="number" id="fontSub" min="10" max="40"></div><div class="field"><label for="strokeW">윤곽선(px)</label><input type="number" id="strokeW" min="1" max="10" step="0.2"></div></div>
  <div class="twocol"><div class="field"><label for="gapY">세로 간격(px)</label><input type="number" id="gapY" min="20" max="130"></div><div class="field"><label for="padNode">내부 여백(px)</label><input type="number" id="padNode" min="8" max="60"></div></div>
+ <button id="fitAllText" style="width:100%">모든 직사각형을 글자 크기에 맞춤</button>
  <button id="centerTitle" style="width:100%">제목 중앙 및 페이지 여백 정리</button>
  <div class="note">실제 도면 폭에 맞춰 제목을 중앙으로 놓습니다. <b>내부 여백 8px ≈ 2mm</b>(96dpi 기준).</div>
 </div>
@@ -106,6 +108,7 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
  <div class="twocol"><div class="field"><label>X (중심)</label><input id="nodeX" type="number" step="5"></div><div class="field"><label>Y (중심)</label><input id="nodeY" type="number" step="5"></div></div>
  <div class="twocol"><div class="field"><label>가로(px)</label><input id="nodeW" type="number" min="120" max="1800" step="10"></div><div class="field"><label>세로(px)</label><input id="nodeH" type="number" min="50" max="800" step="10"></div></div>
  <div class="twocol"><div class="field"><label>도형 종류</label><select id="nodeType"><option value="rect">직사각형</option><option value="diamond">판단 마름모</option></select></div><div class="field"><label>채우기</label><input id="nodeFill" type="color"></div></div>
+ <div class="field auto-fit-field"><label class="auto-fit-toggle"><input id="autoFitText" type="checkbox" checked> 글자 수정 시 직사각형 자동 맞춤</label><button type="button" id="fitSelectedText">선택한 직사각형 글자에 맞춤</button></div>
  <div class="note">박스를 드래그하면 연결선이 자동으로 따라갑니다. 판단 마름모는 꼭짓점에서만 분기합니다.</div>
 </div>
 <div id="edgeSettings" style="display:none">
@@ -166,6 +169,33 @@ function edgePath(e){const a=getNode(e.from),b=getNode(e.to);if(!a||!b)return nu
  return pts;
 }
 function polyPath(points){return 'M '+points.map(p=>p.join(' ')).join(' L ')}
+
+/* v1.4: fit rectangular node dimensions to measured glyph widths */
+function measureFlowText(text,fontSize,weight){
+ const textValue=String(text||'');
+ if(!measureFlowText.canvas)measureFlowText.canvas=document.createElement('canvas');
+ const context=measureFlowText.canvas.getContext('2d');
+ if(!context)return Array.from(textValue).reduce((n,ch)=>n+(ch.codePointAt(0)>127?fontSize:fontSize*.65),0);
+ context.font=weight+' '+fontSize+'px system-ui, "Noto Sans KR", "Malgun Gothic", sans-serif';
+ return context.measureText(textValue).width;
+}
+function fitRectToText(node){
+ if(!node||node.type==='diamond')return false;
+ const title=String(node.title||''),sub=String(node.sub||'');
+ const fs=Number(scene.settings.fontMain)||20,ss=Number(scene.settings.fontSub)||16;
+ const pad=Math.max(8,Number(scene.settings.pad)||8);
+ const safeX=pad+8; // margin from glyph to rectangle outline; includes 2mm minimum
+ const contentW=Math.max(measureFlowText(title,fs,750),measureFlowText(sub,ss,400));
+ const neededW=Math.ceil((contentW+safeX*2)/5)*5;
+ const neededH=sub?Math.ceil((fs*1.4+ss*1.45+pad*2)/5)*5:
+                 Math.ceil((fs*1.6+pad*2)/5)*5;
+ const w=Math.max(140,neededW),h=Math.max(58,neededH);
+ const changed=node.w!==w||node.h!==h;
+ node.w=w;node.h=h;
+ return changed;
+}
+function fitAllRects(){let count=0;for(const node of scene.nodes)if(fitRectToText(node))count++;return count;}
+
 function drawText(group,n){let fs=scene.settings.fontMain,ss=scene.settings.fontSub;const titleWidth=n.w-(scene.settings.pad*2);const title=n.title||'';let approx=title.length*fs*.65;if(approx>titleWidth)fs=Math.max(14,fs*titleWidth/approx);const hasSub=Boolean(n.sub);let firstY=n.y+(hasSub?-5:fs*.33);
  const a=sEl('text',{x:n.x,y:firstY,'text-anchor':'middle','font-size':fs,'font-weight':750,fill:'#1b293f','pointer-events':'none'},title);group.appendChild(a);
  if(hasSub){let subs=n.sub;let sw=n.w-(scene.settings.pad*2);let subSize=Math.min(ss,Math.max(13,ss*sw/Math.max(sw,subs.length*ss*.61)));group.appendChild(sEl('text',{x:n.x,y:n.y+28,'text-anchor':'middle','font-size':subSize,'font-weight':400,fill:'#34435a','pointer-events':'none'},subs));}
@@ -211,7 +241,7 @@ $('canvas').addEventListener('pointerup',evt=>{if(drag){drag=null;showProps();}t
 $('canvas').addEventListener('dblclick',evt=>{if(mode==='raw'){if(rawSelected&&rawSelected.tagName?.toLowerCase()==='text'){let v=prompt('글자 수정',rawSelected.textContent);if(v!==null){rawSelected.textContent=v;$('rawLabel').value=v;}}return;}let g=evt.target.closest('[data-node]');if(!g)return;let n=getNode(g.dataset.node);if(!n)return;let val=prompt('박스 첫 줄 글자 수정',n.title);if(val!==null){checkpoint();n.title=val;updateUI();}});
 $('rawLabel').addEventListener('change',()=>{if(mode==='raw'&&rawSelected&&rawSelected.tagName?.toLowerCase()==='text'){rawSelected.textContent=$('rawLabel').value}});
 function uid(prefix){return prefix+Date.now().toString(36)+Math.floor(Math.random()*999)}
-function addNode(type){if(mode!=='structured'){toast('외부 SVG는 그룹 이동 편집 모드입니다. JSON 도면에서 새 노드를 추가할 수 있습니다.');return;}checkpoint();const id=uid('n');scene.nodes.push({id,type,x:scene.width/2,y:scene.height-135,w:type==='diamond'?365:465,h:type==='diamond'?140:96,title:type==='diamond'?'조건인가?':'새 처리 단계',sub:type==='diamond'?'예 / 아니오 분기':'설명을 입력하세요',fill:type==='diamond'?'#fff4d5':'#ffffff'});selected=new Set([id]);edgeSelect=null;updateUI();toast('새 도형이 추가되었습니다. 이동해 배치하세요.')}
+function addNode(type){if(mode!=='structured'){toast('외부 SVG는 그룹 이동 편집 모드입니다. JSON 도면에서 새 노드를 추가할 수 있습니다.');return;}checkpoint();const id=uid('n');scene.nodes.push({id,type,x:scene.width/2,y:scene.height-135,w:type==='diamond'?365:465,h:type==='diamond'?140:96,title:type==='diamond'?'조건인가?':'새 처리 단계',sub:type==='diamond'?'예 / 아니오 분기':'설명을 입력하세요',fill:type==='diamond'?'#fff4d5':'#ffffff'});selected=new Set([id]);edgeSelect=null;if(type==='rect'&&$('autoFitText')?.checked)fitRectToText(getNode(id));updateUI();toast('새 도형이 추가되었습니다. 이동해 배치하세요.')}
 $('addRect').onclick=()=>addNode('rect');$('addDiamond').onclick=()=>addNode('diamond');$('addEdge').onclick=()=>{if(mode!=='structured'){toast('연결선 자동 편집은 구조화 도면에서만 가능합니다.');return;}connecting=!connecting;connectSource=null;$('addEdge').classList.toggle('primary',connecting);highlightStatus();toast(connecting?'시작 도형을 클릭하세요.':'연결선 추가 취소')};
 function deleteSelected(){if(mode==='raw'){if(rawSelected){rawSelected.remove();rawSelected=null;showProps();}return;}if(!selected.size&&!edgeSelect)return;checkpoint();if(selected.size){scene.nodes=scene.nodes.filter(n=>!selected.has(n.id));scene.edges=scene.edges.filter(e=>!selected.has(e.from)&&!selected.has(e.to));}if(edgeSelect)scene.edges=scene.edges.filter(e=>e.id!==edgeSelect);selected.clear();edgeSelect=null;updateUI()}
 $('delete').onclick=deleteSelected;$('undo').onclick=undo;$('redo').onclick=redo;
@@ -502,6 +532,34 @@ visioPointerEnd=function(evt){
  originalVisioEnd(evt);
 };
 updateUI();
+
+
+/* v1.4 direct text fit controls */
+const autoFitText=$('autoFitText');
+function currentSingleRect(){return selected.size===1?getNode([...selected][0]):null}
+$('fitSelectedText').addEventListener('click',()=>{
+ const n=currentSingleRect();
+ if(!n||n.type==='diamond'){toast('직사각형 하나를 선택해 주세요.');return;}
+ checkpoint();fitRectToText(n);updateUI();toast('글자 길이와 내부 여백에 맞춰 크기를 조절했습니다.');
+});
+$('fitAllText').addEventListener('click',()=>{
+ if(mode!=='structured')return;
+ checkpoint();const count=fitAllRects();updateUI();toast(count+'개 직사각형의 크기를 조절했습니다.');
+});
+for(const id of ['nodeTitle','nodeSub']){
+ $(id).addEventListener('change',()=>{
+  if(mode!=='structured'||!autoFitText.checked)return;
+  const n=currentSingleRect();
+  if(n&&fitRectToText(n)){updateUI();}
+ });
+}
+// Global font and padding adjustment should not shrink the font to fit old oversized boxes.
+for(const id of ['fontMain','fontSub','padNode']){
+ $(id).addEventListener('change',()=>{
+  if(mode!=='structured'||!autoFitText.checked)return;
+  if(fitAllRects())updateUI();
+ });
+}
 
 </script>
 </body></html>
