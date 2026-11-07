@@ -152,10 +152,22 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 #rubberBand{fill:rgba(78,62,180,.12);stroke:#543ac5;stroke-width:2.5;stroke-dasharray:9 5;pointer-events:none}
 @media(min-width:871px){#viewport{justify-content:center !important;padding:10px !important}
  #work{margin-left:auto !important;margin-right:auto !important}}
+
+/* v2.4 Visio/Figma inspired accessible selection */
+@media(min-width:871px){
+ #viewport{cursor:crosshair}
+ .node{cursor:move}
+ .node.selected .node-shape{stroke:#4058bb!important;stroke-width:4!important;filter:none!important}
+ .edge.selected path:not(.edge-hit){stroke:#bf502d!important}
+ body.space-panning #viewport,body.space-panning #canvas{cursor:grab!important}
+ body.space-panning #viewport:active{cursor:grabbing!important}
+}
+#marqueeBtn{white-space:nowrap}
+#batchPanel{scroll-margin-top:10px}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.3</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.4</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="marqueeBtn" type="button" aria-pressed="false">▣ 영역 선택</button><button id="selectAllBoxes" type="button">전체 박스</button><button id="clearBoxSelection" type="button">선택 해제</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -257,7 +269,7 @@ function baseScene(){
   return {version:3,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'left',autoFit:true},subtitle:{x:725,y:98,w:950,h:38,size:20,align:'left',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.5,gap:38,pad:12},nodes,edges};
 }
 let activeHeading=null,headingDrag=null;
-let marqueeMode=false,marquee=null;
+let marqueeMode=false,marquee=null,spacePanHeld=false;
 let scene=baseScene(),mode='structured',rawDoc=null,rawSelected=null,selected=new Set(),edgeSelect=null,connecting=false,connectSource=null,zoom=0.8,history=[],future=[],drag=null,historyLast=0;
 const esc=s=>String(s??'');
 function cloneScene(){return JSON.parse(JSON.stringify(scene))}
@@ -395,7 +407,10 @@ function highlightStatus(){let b=$('statusLine');b.textContent=connecting?'연�
 $('canvas').addEventListener('pointerdown',evt=>{if(evt.button!==0)return;if(activeHeading){activeHeading=null;render();}if(mode==='raw'){const target=evt.target.closest('g,rect,polygon,path,text');if(target&&target!==$('canvas')){rawSelected=target;showProps();drag={raw:true,target,origin:posFromPointer(evt),transform:target.getAttribute('transform')||'',moved:false};$('canvas').setPointerCapture(evt.pointerId);}return}
  const grp=evt.target.closest('[data-node]');const ed=evt.target.closest('[data-edge]');
  if(connecting){if(!grp)return;const id=grp.dataset.node;if(!connectSource){connectSource=id;toast('끝 도형을 선택하세요.')}else{if(id===connectSource){toast('다른 노드를 선택하세요');return;}checkpoint();let a=getNode(connectSource),b=getNode(id);let fp=b.y>a.y?'bottom':b.x>a.x?'right':'left';let tp=b.y>a.y?'top':b.x>a.x?'left':'right';scene.edges.push({id:'e'+Date.now().toString(36),from:connectSource,to:id,fp,tp,label:'',route:'auto'});connecting=false;connectSource=null;$('addEdge').classList.remove('primary');updateUI();toast('연결선을 추가했습니다.');}return;}
- if(grp){const id=grp.dataset.node;if(evt.shiftKey||visioMultiSelect){if(selected.has(id))selected.delete(id);else selected.add(id)}else if(!selected.has(id)){selected.clear();selected.add(id)}edgeSelect=null;drag={point:posFromPointer(evt),positions:[...selected].map(id=>({id,x:getNode(id).x,y:getNode(id).y})),moved:false,history:false};$('canvas').setPointerCapture(evt.pointerId);updateUI();highlightStatus();evt.preventDefault();}
+ if(grp){const id=grp.dataset.node;if(evt.ctrlKey||evt.metaKey||evt.shiftKey||visioMultiSelect){if(selected.has(id))selected.delete(id);else selected.add(id)}else if(!selected.has(id)){selected.clear();selected.add(id)}edgeSelect=null;
+ if(evt.ctrlKey||evt.metaKey||evt.shiftKey||visioMultiSelect){drag=null;updateUI();highlightStatus();evt.preventDefault();return;}
+ drag={point:posFromPointer(evt),positions:[...selected].map(id=>({id,x:getNode(id).x,y:getNode(id).y})),moved:false,history:false};
+ $('canvas').setPointerCapture(evt.pointerId);updateUI();highlightStatus();evt.preventDefault();}
  else if(ed){selected.clear();edgeSelect=ed.dataset.edge;updateUI();highlightStatus();evt.preventDefault();}
  else{if(!marqueeMode){selected.clear();edgeSelect=null;updateUI();highlightStatus();}}});
 $('canvas').addEventListener('pointermove',evt=>{if(!drag)return;const p=posFromPointer(evt);if(drag.raw){const dx=p.x-drag.origin.x,dy=p.y-drag.origin.y;if(Math.abs(dx)+Math.abs(dy)>2){drag.target.setAttribute('transform',`translate(${dx} ${dy}) ${drag.transform}`);drag.moved=true;}return}
@@ -513,36 +528,70 @@ updateZoom=function(){originalUpdateZoom();$('quickZoom').textContent=Math.round
 const originalUpdateUI=updateUI;
 updateUI=function(){originalUpdateUI();syncKnobs()};
 let pan=null;
+
+/* Basic canvas gesture: drag blank to select; hold Space to pan.
+   Ctrl/Cmd/Shift while dragging adds nodes to the existing selection. */
+function boxContainsNode(rect,n){
+ const l=n.x-n.w/2,r=n.x+n.w/2,t=n.y-n.h/2,b=n.y+n.h/2;
+ // Default intersection allows selecting a shape without enclosing all its corners.
+ return l<=rect.right&&r>=rect.left&&t<=rect.bottom&&b>=rect.top;
+}
+function marqueeHitIDs(g){
+ const l=Math.min(g.start.x,g.end.x),r=Math.max(g.start.x,g.end.x);
+ const t=Math.min(g.start.y,g.end.y),b=Math.max(g.start.y,g.end.y);
+ return scene.nodes.filter(n=>boxContainsNode({left:l,right:r,top:t,bottom:b},n)).map(n=>n.id);
+}
+const inputIsText=e=>['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)||e.target?.isContentEditable;
+document.addEventListener('keydown',e=>{
+ if((e.code==='Space'||e.key===' ')&&!inputIsText(e)&&!e.repeat){
+  spacePanHeld=true;document.body.classList.add('space-panning');e.preventDefault();
+ }
+});
+document.addEventListener('keyup',e=>{
+ if(e.code==='Space'||e.key===' '){spacePanHeld=false;document.body.classList.remove('space-panning');}
+});
+window.addEventListener('blur',()=>{spacePanHeld=false;document.body.classList.remove('space-panning')});
 $('viewport').addEventListener('pointerdown',e=>{
-  if(e.target.closest?.('[data-node],[data-edge],[data-resize],[data-bend],[data-end-role],[data-connect-port],[data-heading],[data-heading-handle]'))return;
-  if(e.button!==0)return;
-  if(marqueeMode&&mode==='structured'){
-    const p=posFromPointer(e);
-    marquee={start:p,end:p,pointerId:e.pointerId};
-    if(!e.shiftKey)selected.clear();
-    edgeSelect=null;render();
-    $('viewport').setPointerCapture(e.pointerId);
-    e.preventDefault();return;
-  }
-  pan={x:e.clientX,y:e.clientY,left:$('viewport').scrollLeft,top:$('viewport').scrollTop};
+ if(e.button!==0)return;
+ if(e.target.closest?.('[data-node],[data-edge],[data-resize],[data-bend],[data-end-role],[data-connect-port],[data-heading],[data-heading-handle]'))return;
+ if(!spacePanHeld&&mode==='structured'&&!connecting){
+  const start=posFromPointer(e);
+  marquee={start,end:start,pointerId:e.pointerId,
+    additive:e.ctrlKey||e.metaKey||e.shiftKey,
+    subtractive:e.altKey,clientStartX:e.clientX,clientStartY:e.clientY};
+  if(!marquee.additive&&!marquee.subtractive)selected.clear();
+  edgeSelect=null;activeHeading=null;
   $('viewport').setPointerCapture(e.pointerId);
+  render();showRubberBand();updateBatchPanel();
+  e.preventDefault();return;
+ }
+ pan={x:e.clientX,y:e.clientY,left:$('viewport').scrollLeft,top:$('viewport').scrollTop,pointerId:e.pointerId};
+ $('viewport').setPointerCapture(e.pointerId);
+ e.preventDefault();
 },{capture:true});
 $('viewport').addEventListener('pointermove',e=>{
-  if(marquee){marquee.end=posFromPointer(e);showRubberBand();e.preventDefault();return;}
-  if(!pan)return;
-  $('viewport').scrollLeft=pan.left-(e.clientX-pan.x);
-  $('viewport').scrollTop=pan.top-(e.clientY-pan.y);
-},{capture:true});
-const endPan=(e)=>{
- if(marquee){
-  const a=marquee.start,b=marquee.end;
-  const left=Math.min(a.x,b.x),right=Math.max(a.x,b.x),top=Math.min(a.y,b.y),bottom=Math.max(a.y,b.y);
-  for(const n of scene.nodes){
-   if(n.x+n.w/2>=left&&n.x-n.w/2<=right&&n.y+n.h/2>=top&&n.y-n.h/2<=bottom)selected.add(n.id);
-  }
-  marquee=null;updateUI();return;
+ if(marquee&&marquee.pointerId===e.pointerId){
+  marquee.end=posFromPointer(e);
+  showRubberBand();e.preventDefault();return;
  }
- pan=null;
+ if(!pan||pan.pointerId!==e.pointerId)return;
+ $('viewport').scrollLeft=pan.left-(e.clientX-pan.x);
+ $('viewport').scrollTop=pan.top-(e.clientY-pan.y);
+ e.preventDefault();
+},{capture:true});
+const endPan=e=>{
+ if(marquee&&marquee.pointerId===e.pointerId){
+  const g=marquee;marquee=null;
+  const moved=Math.hypot(e.clientX-g.clientStartX,e.clientY-g.clientStartY)>=4;
+  if(moved){
+   for(const id of marqueeHitIDs(g)){
+    if(g.subtractive)selected.delete(id);else selected.add(id);
+   }
+  }
+  updateUI();highlightStatus();
+  e.preventDefault();return;
+ }
+ if(pan&&pan.pointerId===e.pointerId)pan=null;
 };
 $('viewport').addEventListener('pointerup',endPan,{capture:true});
 $('viewport').addEventListener('pointercancel',()=>{marquee=null;pan=null;render()},{capture:true});
@@ -985,7 +1034,7 @@ function showRubberBand(){
 $('marqueeBtn').onclick=()=>{
  marqueeMode=!marqueeMode;$('marqueeBtn').classList.toggle('active',marqueeMode);
  $('marqueeBtn').setAttribute('aria-pressed',String(marqueeMode));
- toast(marqueeMode?'빈 공간에서 끌어 선택 영역을 그리세요.':'영역 선택 종료');
+ toast(marqueeMode?'영역 선택 안내: 빈 공간에서 드래그하세요. Ctrl·Shift는 추가 선택입니다.':'영역 선택은 별도 모드 없이도 사용할 수 있습니다.');
 };
 function selectBoxes(onlyRect=false){
  if(mode!=='structured')return;
@@ -995,10 +1044,15 @@ function selectBoxes(onlyRect=false){
 }
 $('selectAllBoxes').onclick=()=>selectBoxes();
 $('clearBoxSelection').onclick=$('batchClear').onclick=()=>{selected.clear();edgeSelect=null;updateUI()};
+let lastBatchCount=0;
 function updateBatchPanel(){
  const panel=$('batchPanel');
- panel.hidden=mode!=='structured'||selected.size<2;
- $('batchCount').textContent=selected.size+'개 박스 선택';
+ const count=selected.size;
+ panel.hidden=mode!=='structured'||count<2;
+ $('batchCount').textContent=count+'개 박스 선택';
+ $('selectionTitle').textContent=mode==='structured'&&count>1?'· '+count+'개 박스 선택':$('selectionTitle').textContent;
+ if(count>=2&&lastBatchCount<2)document.querySelector('aside')?.scrollTo({top:0,behavior:'smooth'});
+ lastBatchCount=count;
 }
 document.addEventListener('keydown',e=>{const active=document.activeElement;if(['INPUT','TEXTAREA','SELECT'].includes(active?.tagName)||active?.isContentEditable)return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'&&mode==='structured'){e.preventDefault();selectBoxes();}else if(e.key==='Escape'&&(selected.size||marqueeMode)){selected.clear();edgeSelect=null;marqueeMode=false;$('marqueeBtn').classList.remove('active');$('marqueeBtn').setAttribute('aria-pressed','false');updateUI();}});
 const originalBatchUI=updateUI;
