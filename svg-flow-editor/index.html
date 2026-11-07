@@ -232,7 +232,7 @@ function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.repl
  const eg=sEl('g',{id:'edges'});scene.edges.forEach(e=>{let pts=edgePath(e);if(!pts)return;const g=sEl('g',{'data-edge':e.id,class:'edge'+(edgeSelect===e.id?' selected':'')});g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'#233247','stroke-width':scene.settings.stroke,'stroke-linejoin':'round','stroke-linecap':'round','marker-end':'url(#arrowhead)'}));g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'transparent','stroke-width':Math.max(22,32/Math.max(zoom,.2)),'pointer-events':'stroke',class:'edge-hit'}));if(e.label){const [sx,sy]=pts[0], [nx,ny]=pts[1];const lx=sx===nx?sx+45:(sx+nx)/2,ly=sy===ny?sy-13:(sy+ny)/2;
  g.append(sEl('text',{x:lx,y:ly,'text-anchor':'middle','font-size':17,'font-weight':750,fill:'#25334a',class:'edge-label'},e.label));}
  eg.append(g)});s.append(eg);
- const ng=sEl('g',{id:'nodes'});scene.nodes.forEach(n=>{const g=sEl('g',{'data-node':n.id,class:'node'+(selected.has(n.id)?' selected':'')});let shape;if(n.type==='diamond'){const pts=[[n.x,n.y-n.h/2],[n.x+n.w/2,n.y],[n.x,n.y+n.h/2],[n.x-n.w/2,n.y]];shape=sEl('polygon',{points:pts.map(p=>p.join(',')).join(' '),fill:n.fill,stroke:'#62491d','stroke-width':scene.settings.stroke,'stroke-linejoin':'round',class:'node-shape'});}else{shape=sEl('rect',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,fill:n.fill,stroke:'#1b293d','stroke-width':scene.settings.stroke,class:'node-shape'});}g.append(shape);drawText(g,n);ng.append(g)});s.append(ng);
+ const ng=sEl('g',{id:'nodes'});scene.nodes.forEach(n=>{const g=sEl('g',{'data-node':n.id,class:'node'+(selected.has(n.id)?' selected':'')});let shape;if(n.type==='diamond'){const pts=[[n.x,n.y-n.h/2],[n.x+n.w/2,n.y],[n.x,n.y+n.h/2],[n.x-n.w/2,n.y]];shape=sEl('polygon',{points:pts.map(p=>p.join(',')).join(' '),fill:n.fill,stroke:'#62491d','stroke-width':scene.settings.stroke,'stroke-linejoin':'round',class:'node-shape','pointer-events':'all'});}else{shape=sEl('rect',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,fill:n.fill,stroke:'#1b293d','stroke-width':scene.settings.stroke,class:'node-shape','pointer-events':'all'});}g.append(shape);drawText(g,n);ng.append(g)});s.append(ng);
  drawEditHandles(s);
  $('work').style.width=(scene.width*zoom)+'px';$('work').style.height=(scene.height*zoom)+'px';s.style.width=(scene.width*zoom)+'px';s.style.height=(scene.height*zoom)+'px'; // SVG width CSS scaled by zoom; pointer coordinate mapping uses screen CTM
  updateZoom();
@@ -749,14 +749,14 @@ for(const id of ['nodeTitle','nodeSub']){
   if(mode!=='structured'||!$('autoFitText').checked)return;
   const n=currentSingleRect();if(!n||n.type!=='rect')return;
   const key=id==='nodeTitle'?'title':'sub';
-  if(n[key]!==$(id).value){n[key]=$(id).value;fitRectToText(n);render();showProps();}
+  if(n[key]!==$(id).value){n[key]=$(id).value;fitRectToText(n);render();$('nodeW').value=n.w;$('nodeH').value=n.h;}
  });
 }
 const oldResetAction=$('resetScene').onclick;
 $('resetScene').onclick=()=>{
  // The existing reset handler is preserved; apply the v1.5 style after reset completes.
  oldResetAction();
- if(mode==='structured'&&scene.version===2){useV15Defaults();scene.version=3;updateUI();}
+ if(mode==='structured'&&scene.version===3){useV15Defaults();updateUI();}
 };
 const originalInitFit=fitCanvas;
 fitCanvas=function(){originalInitFit();};
