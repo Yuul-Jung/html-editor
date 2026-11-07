@@ -75,10 +75,20 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 #vizioHelp{font-size:12px;color:#40536f;margin:5px 0 9px;padding:8px 10px;background:#eaf2fc;border-left:3px solid #5143ad}
 @media(max-width:870px){.vizio-handle,.vizio-port,.vizio-end,.vizio-bend{stroke-width:4}#vizioMode button{min-height:44px}}
 .auto-fit-field{display:flex;flex-direction:column;gap:10px}.auto-fit-toggle{display:flex;align-items:center;gap:9px;font-weight:700}.auto-fit-toggle input{width:22px;height:22px;accent-color:#4635b1}.auto-fit-field button{min-height:44px;border-color:#6554ac;font-weight:700}
+
+.heading-hit{fill:transparent;stroke:none;pointer-events:all;cursor:move;touch-action:none}
+.heading-text{pointer-events:none;user-select:none}
+.heading-outline{fill:none;stroke:#5c50d9;stroke-width:2;stroke-dasharray:7 5;pointer-events:none}
+.heading-handle{fill:#fff;stroke:#5443d3;stroke-width:3;cursor:nwse-resize;pointer-events:all;touch-action:none}
+.heading-switch{display:flex;align-items:center;gap:10px;font-weight:650;margin:10px 0}
+.heading-switch input{width:22px;height:22px;accent-color:#4635b1}
+.heading-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.heading-buttons button{min-height:44px;font-weight:700}
+#headingSize{width:100%;height:40px;accent-color:#4635b1}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.4</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.5</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -101,6 +111,15 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
  <button id="fitAllText" style="width:100%">모든 직사각형을 글자 크기에 맞춤</button>
  <button id="centerTitle" style="width:100%">제목 중앙 및 페이지 여백 정리</button>
  <div class="note">실제 도면 폭에 맞춰 제목을 중앙으로 놓습니다. <b>내부 여백 8px ≈ 2mm</b>(96dpi 기준).</div>
+</div>
+
+<div id="headingSettings" style="display:none">
+ <div class="note">제목·부제는 각각 투명한 박스입니다. 글자를 드래그해 이동하고 선택 테두리의 조절점으로 크기를 변경합니다. 저장할 때 테두리는 제거됩니다.</div>
+ <div class="field"><label for="headingValue">텍스트</label><textarea id="headingValue" rows="2"></textarea></div>
+ <div class="field"><label for="headingSize">글자 크기</label><input type="range" id="headingSize" min="12" max="72" step="1"><span id="headingSizeLabel"></span></div>
+ <div class="field"><label for="headingAlign">정렬</label><select id="headingAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></div>
+ <label class="heading-switch"><input type="checkbox" id="headingAuto" checked> 글자 길이에 따라 박스 자동 맞춤</label>
+ <div class="heading-buttons"><button type="button" id="headingFit">글자에 맞춤</button><button type="button" id="headingCenter">페이지 중앙 정렬</button></div>
 </div>
 <div id="nodeSettings" style="display:none">
  <div class="field"><label>첫 줄 · 코드명 / 제목</label><textarea id="nodeTitle" rows="2"></textarea></div>
@@ -148,8 +167,9 @@ function baseScene(){
   ];
   const edge=(id,from,to,fp,tp,label='',route='auto')=>({id,from,to,fp,tp,label,route});
   const edges=[edge('e1','start','declare','bottom','top'),edge('e2','declare','intro','bottom','top'),edge('e3','intro','status','bottom','top'),edge('e4','status','receive','bottom','top'),edge('e5','receive','d1','bottom','top'),edge('e6','d1','cmd','right','left','예'),edge('e7','d1','d2','bottom','top','아니오'),edge('e8','d2','err1','right','left','예'),edge('e9','d2','d3','bottom','top','아니오'),edge('e10','d3','err2','right','left','예'),edge('e11','d3','repeat','bottom','top','아니오'),edge('e12','cmd','repeat','right','right','','loopRight'),edge('e13','err1','repeat','right','right','','loopRight'),edge('e14','err2','repeat','right','right','','loopRight'),edge('e15','repeat','receive','left','left','반복','loopLeft')];
-  return {version:1,title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.4,gap:38,pad:12},nodes,edges};
+  return {version:2,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'center',autoFit:true},subtitle:{x:725,y:87,w:950,h:42,size:20,align:'center',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.4,gap:38,pad:12},nodes,edges};
 }
+let activeHeading=null,headingDrag=null;
 let scene=baseScene(),mode='structured',rawDoc=null,rawSelected=null,selected=new Set(),edgeSelect=null,connecting=false,connectSource=null,zoom=0.7,history=[],future=[],drag=null,historyLast=0;
 const esc=s=>String(s??'');
 function cloneScene(){return JSON.parse(JSON.stringify(scene))}
@@ -203,7 +223,7 @@ function drawText(group,n){let fs=scene.settings.fontMain,ss=scene.settings.font
 function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.replaceChildren();s.setAttribute('width',scene.width);s.setAttribute('height',scene.height);s.setAttribute('viewBox',`0 0 ${scene.width} ${scene.height}`);
  const defs=sEl('defs');const marker=sEl('marker',{id:'arrowhead',markerWidth:10,markerHeight:10,refX:9,refY:5,orient:'auto',markerUnits:'userSpaceOnUse'});marker.appendChild(sEl('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#233247'}));defs.append(marker);s.append(defs);
  s.append(sEl('rect',{x:0,y:0,width:scene.width,height:scene.height,fill:'#fff'}));
- s.append(sEl('text',{x:scene.width/2,y:48,'font-size':33,'font-weight':780,fill:'#172439','text-anchor':'middle'},scene.title));s.append(sEl('text',{x:scene.width/2,y:86,'font-size':20,fill:'#617083','text-anchor':'middle'},scene.subtitle));
+ drawHeadingBoxes(s);
  const eg=sEl('g',{id:'edges'});scene.edges.forEach(e=>{let pts=edgePath(e);if(!pts)return;const g=sEl('g',{'data-edge':e.id,class:'edge'+(edgeSelect===e.id?' selected':'')});g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'#233247','stroke-width':scene.settings.stroke,'stroke-linejoin':'round','stroke-linecap':'round','marker-end':'url(#arrowhead)'}));g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'transparent','stroke-width':Math.max(22,32/Math.max(zoom,.2)),'pointer-events':'stroke',class:'edge-hit'}));if(e.label){const [sx,sy]=pts[0], [nx,ny]=pts[1];const lx=sx===nx?sx+45:(sx+nx)/2,ly=sy===ny?sy-13:(sy+ny)/2;
  g.append(sEl('text',{x:lx,y:ly,'text-anchor':'middle','font-size':17,'font-weight':750,fill:'#25334a',class:'edge-label'},e.label));}
  eg.append(g)});s.append(eg);
@@ -215,10 +235,11 @@ function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.repl
 function renderRaw(){const s=$('canvas');s.replaceChildren();if(rawDoc){const root=rawDoc.documentElement;for(const n of Array.from(root.childNodes)){s.append(document.importNode(n,true))}const vb=root.getAttribute('viewBox');if(vb)s.setAttribute('viewBox',vb);const w=Number(root.getAttribute('width')?.replace('px',''))||1200;const h=Number(root.getAttribute('height')?.replace('px',''))||1500;s.setAttribute('width',w);s.setAttribute('height',h);$('work').style.width=(w*zoom)+'px';$('work').style.height=(h*zoom)+'px';s.style.width=(w*zoom)+'px';s.style.height=(h*zoom)+'px';}};
 function posFromPointer(evt){let pt=$('canvas').createSVGPoint();pt.x=evt.clientX;pt.y=evt.clientY;const ctm=$('canvas').getScreenCTM();if(!ctm)return {x:0,y:0};return pt.matrixTransform(ctm.inverse())}
 function toast(msg){let e=$('toast');e.textContent=msg;e.style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>e.style.display='none',2700)}
-function showProps(){const count=selected.size;$('generalSettings').style.display=(!count&&!edgeSelect&&mode==='structured')?'block':'none';$('nodeSettings').style.display=(count===1&&mode==='structured')?'block':'none';$('edgeSettings').style.display=(edgeSelect&&mode==='structured')?'block':'none';$('rawSettings').style.display=mode==='raw'?'block':'none';
- $('selectionTitle').textContent=mode==='raw'?'· 외부 SVG':edgeSelect?'· 연결선':count>1?`· ${count}개 노드`:count===1?'· 노드':'· 전체 도면';
+function showProps(){const count=selected.size; $('headingSettings').style.display=(activeHeading&&mode==='structured')?'block':'none';$('generalSettings').style.display=(!count&&!edgeSelect&&!activeHeading&&mode==='structured')?'block':'none';$('nodeSettings').style.display=(count===1&&mode==='structured')?'block':'none';$('edgeSettings').style.display=(edgeSelect&&mode==='structured')?'block':'none';$('rawSettings').style.display=mode==='raw'?'block':'none';
+ $('selectionTitle').textContent=mode==='raw'?'· 외부 SVG':edgeSelect?'· 연결선':activeHeading?'· '+(activeHeading==='title'?'제목':'부제'):count>1?`· ${count}개 노드`:count===1?'· 노드':'· 전체 도면';
  if(mode==='raw'){$('rawLabel').value=rawSelected?.textContent||'';return}
- if(!count&&!edgeSelect){for(const [id,val] of Object.entries({titleInput:scene.title,subtitleInput:scene.subtitle,pageW:scene.width,fontMain:scene.settings.fontMain,fontSub:scene.settings.fontSub,strokeW:scene.settings.stroke,gapY:scene.settings.gap,padNode:scene.settings.pad})){$(id).value=val;$(id).dataset.lastApplied=String(val);}}
+ if(activeHeading){const h=getHeading(activeHeading);$('headingValue').value=scene[activeHeading];$('headingSize').value=h.size;$('headingSizeLabel').textContent=h.size+'px';$('headingAlign').value=h.align;$('headingAuto').checked=h.autoFit!==false;return;}
+ if(!count&&!edgeSelect&&!activeHeading){for(const [id,val] of Object.entries({titleInput:scene.title,subtitleInput:scene.subtitle,pageW:scene.width,fontMain:scene.settings.fontMain,fontSub:scene.settings.fontSub,strokeW:scene.settings.stroke,gapY:scene.settings.gap,padNode:scene.settings.pad})){$(id).value=val;$(id).dataset.lastApplied=String(val);}}
  if(count===1){const n=getNode([...selected][0]);if(!n)return;for(const [id,val] of Object.entries({nodeTitle:n.title,nodeSub:n.sub,nodeX:n.x,nodeY:n.y,nodeW:n.w,nodeH:n.h,nodeType:n.type,nodeFill:n.fill})){$(id).value=val;$(id).dataset.lastApplied=String(val);}}
  if(edgeSelect){let e=scene.edges.find(x=>x.id===edgeSelect);if(!e)return;for(const id of ['edgeFrom','edgeTo']){$(id).replaceChildren(...scene.nodes.map(n=>new Option(n.id+' · '+n.title.slice(0,18),n.id)));}
  for(const [id,val] of Object.entries({edgeFrom:e.from,edgeTo:e.to,edgeFromPort:e.fp,edgeToPort:e.tp,edgeLabel:e.label,edgeRoute:e.route})){$(id).value=val;$(id).dataset.lastApplied=String(val);}}}
@@ -228,7 +249,7 @@ for(const [id,fn] of Object.entries({titleInput:v=>scene.title=v,subtitleInput:v
 for(const [id,key] of Object.entries({nodeTitle:'title',nodeSub:'sub',nodeX:'x',nodeY:'y',nodeW:'w',nodeH:'h',nodeType:'type',nodeFill:'fill'}))changeField(id,v=>{let n=getNode([...selected][0]);if(n)n[key]=['x','y','w','h'].includes(key)?+v:v});
 for(const [id,key] of Object.entries({edgeFrom:'from',edgeTo:'to',edgeFromPort:'fp',edgeToPort:'tp',edgeLabel:'label',edgeRoute:'route'}))changeField(id,v=>{let e=scene.edges.find(e=>e.id===edgeSelect);if(e)e[key]=v});
 function highlightStatus(){let b=$('statusLine');b.textContent=connecting?'연결선 모드: 시작 도형, 끝 도형을 차례로 누르세요.':selected.size?'도형 선택됨: 끌어서 옮기거나 오른쪽 속성을 수정하세요.':edgeSelect?'연결선 선택됨: 오른쪽에서 경로를 수정하세요.':'준비됨 · 도형을 클릭하여 이동·편집하세요.'}
-$('canvas').addEventListener('pointerdown',evt=>{if(evt.button!==0)return;if(mode==='raw'){const target=evt.target.closest('g,rect,polygon,path,text');if(target&&target!==$('canvas')){rawSelected=target;showProps();drag={raw:true,target,origin:posFromPointer(evt),transform:target.getAttribute('transform')||'',moved:false};$('canvas').setPointerCapture(evt.pointerId);}return}
+$('canvas').addEventListener('pointerdown',evt=>{if(evt.button!==0)return;if(activeHeading){activeHeading=null;render();}if(mode==='raw'){const target=evt.target.closest('g,rect,polygon,path,text');if(target&&target!==$('canvas')){rawSelected=target;showProps();drag={raw:true,target,origin:posFromPointer(evt),transform:target.getAttribute('transform')||'',moved:false};$('canvas').setPointerCapture(evt.pointerId);}return}
  const grp=evt.target.closest('[data-node]');const ed=evt.target.closest('[data-edge]');
  if(connecting){if(!grp)return;const id=grp.dataset.node;if(!connectSource){connectSource=id;toast('끝 도형을 선택하세요.')}else{if(id===connectSource){toast('다른 노드를 선택하세요');return;}checkpoint();let a=getNode(connectSource),b=getNode(id);let fp=b.y>a.y?'bottom':b.x>a.x?'right':'left';let tp=b.y>a.y?'top':b.x>a.x?'left':'right';scene.edges.push({id:'e'+Date.now().toString(36),from:connectSource,to:id,fp,tp,label:'',route:'auto'});connecting=false;connectSource=null;$('addEdge').classList.remove('primary');updateUI();toast('연결선을 추가했습니다.');}return;}
  if(grp){const id=grp.dataset.node;if(evt.shiftKey||visioMultiSelect){if(selected.has(id))selected.delete(id);else selected.add(id)}else if(!selected.has(id)){selected.clear();selected.add(id)}edgeSelect=null;drag={point:posFromPointer(evt),positions:[...selected].map(id=>({id,x:getNode(id).x,y:getNode(id).y})),moved:false,history:false};$('canvas').setPointerCapture(evt.pointerId);updateUI();highlightStatus();evt.preventDefault();}
@@ -255,7 +276,7 @@ $('autoLayout').onclick=()=>{if(mode!=='structured')return;checkpoint();let main
 $('alignX').onclick=()=>{if(mode!=='structured'||selected.size<2){toast('Shift+클릭으로 2개 이상 선택하세요.');return;}checkpoint();let list=[...selected].map(getNode);let x=list.reduce((a,n)=>a+n.x,0)/list.length;list.forEach(n=>n.x=Math.round(x));updateUI()};
 $('distributeY').onclick=()=>{if(mode!=='structured'||selected.size<3){toast('세로 정렬은 노드 3개 이상 선택하세요.');return;}checkpoint();const ns=[...selected].map(getNode).sort((a,b)=>a.y-b.y);let start=ns[0].y,end=ns.at(-1).y;ns.forEach((n,i)=>n.y=Math.round(start+(end-start)*i/(ns.length-1)));updateUI()};
 $('resetScene').onclick=()=>{if(!confirm('현재 도면을 초기화할까요? 필요하면 먼저 JSON으로 저장하세요.'))return;scene=baseScene();history=[];future=[];selected.clear();edgeSelect=null;mode='structured';rawDoc=null;$('modeLabel').textContent='편집 모드: 노드';updateUI();fitCanvas();toast('01장 기본 예제를 불러왔습니다.')};
-function svgString(){const s=$('canvas');const copy=s.cloneNode(true);copy.querySelectorAll('.selected').forEach(g=>g.classList.remove('selected'));copy.querySelectorAll('path').forEach(p=>{if(p.closest('.edge')){p.setAttribute('stroke','#233247');p.setAttribute('stroke-width',String(scene.settings.stroke))}});copy.querySelectorAll('.node-shape').forEach(p=>{p.removeAttribute('filter');p.setAttribute('stroke',p.tagName.toLowerCase()==='polygon'?'#62491d':'#1b293d');p.setAttribute('stroke-width',String(scene.settings.stroke))});copy.removeAttribute('style');copy.setAttribute('xmlns',NS);copy.setAttribute('version','1.1');copy.setAttribute('width',s.getAttribute('width'));copy.setAttribute('height',s.getAttribute('height'));return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(copy)}
+function svgString(){const s=$('canvas');const copy=s.cloneNode(true);copy.querySelectorAll('#vizio-overlays,.edge-hit,#vizio-preview').forEach(el=>el.remove());copy.querySelectorAll('.selected').forEach(g=>g.classList.remove('selected'));copy.querySelectorAll('path').forEach(p=>{if(p.closest('.edge')){p.setAttribute('stroke','#233247');p.setAttribute('stroke-width',String(scene.settings.stroke))}});copy.querySelectorAll('.node-shape').forEach(p=>{p.removeAttribute('filter');p.setAttribute('stroke',p.tagName.toLowerCase()==='polygon'?'#62491d':'#1b293d');p.setAttribute('stroke-width',String(scene.settings.stroke))});copy.removeAttribute('style');copy.setAttribute('xmlns',NS);copy.setAttribute('version','1.1');copy.setAttribute('width',s.getAttribute('width'));copy.setAttribute('height',s.getAttribute('height'));return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(copy)}
 function download(text,type,name){const blob=new Blob([text],{type}),a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 $('saveSVG').onclick=()=>{download(svgString(),'image/svg+xml;charset=utf-8','P2_01_Main_Flow_edited.svg');toast('SVG 파일을 저장했습니다.')};
 $('saveJSON').onclick=()=>{if(mode!=='structured'){toast('외부 SVG는 SVG로 저장해 주세요.');return;}download(JSON.stringify(scene,null,2),'application/json;charset=utf-8','P2_01_Flow_Project.json');toast('편집용 JSON 작업 파일 저장')};
@@ -350,7 +371,7 @@ const originalUpdateUI=updateUI;
 updateUI=function(){originalUpdateUI();syncKnobs()};
 let pan=null;
 $('viewport').addEventListener('pointerdown',e=>{
-  if(e.target.closest?.('[data-node],[data-edge],[data-resize],[data-bend],[data-end-role],[data-connect-port]'))return;
+  if(e.target.closest?.('[data-node],[data-edge],[data-resize],[data-bend],[data-end-role],[data-connect-port],[data-heading],[data-heading-handle]'))return;
   if(e.button!==0)return;
   pan={x:e.clientX,y:e.clientY,left:$('viewport').scrollLeft,top:$('viewport').scrollTop};
   $('viewport').setPointerCapture(e.pointerId);
@@ -391,7 +412,7 @@ function makeVisioCircle(attrs,color,size=9){
 }
 function drawEditHandles(svg){
  if(mode!=='structured')return;
- const g=sEl('g',{id:'vizio-overlays','aria-label':'드래그 편집 핸들'});
+ const g=sEl('g',{id:'vizio-overlays','aria-label':'드래그 편집 핸들'});drawHeadingSelection(g);
  if(selected.size===1&&!edgeSelect){
   const n=getNode([...selected][0]);if(n){
    const dirs={nw:[-1,-1],n:[0,-1],ne:[1,-1],e:[1,0],se:[1,1],s:[0,1],sw:[-1,1],w:[-1,0]};
@@ -559,6 +580,113 @@ for(const id of ['fontMain','fontSub','padNode']){
  $(id).addEventListener('change',()=>{
   if(mode!=='structured'||!autoFitText.checked)return;
   if(fitAllRects())updateUI();
+ });
+}
+
+
+/* v1.5 — independent transparent title & subtitle frames */
+function getHeading(key){
+ if(!scene.headings)scene.headings={};
+ if(!scene.headings[key]){
+  const main=key==='title';
+  scene.headings[key]={x:scene.width/2,y:main?48:87,w:main?1000:950,h:main?58:42,size:main?33:20,align:'center',autoFit:true};
+ }
+ return scene.headings[key];
+}
+function fitHeading(key){
+ const h=getHeading(key),t=String(scene[key]||''),font=key==='title'?780:400;
+ h.w=Math.max(140,Math.ceil((measureFlowText(t,h.size,font)+40)/10)*10);
+ h.h=Math.max(35,Math.ceil((h.size*1.52+12)/5)*5);
+}
+function drawHeadingBoxes(svg){
+ for(const key of ['title','subtitle']){
+  const h=getHeading(key),g=sEl('g',{'data-heading':key});
+  const left=h.x-h.w/2,top=h.y-h.h/2;
+  g.append(sEl('rect',{x:left,y:top,width:h.w,height:h.h,class:'heading-hit'}));
+  const align=h.align||'center',margin=12;
+  const x=align==='left'?left+margin:align==='right'?left+h.w-margin:h.x;
+  const anchor=align==='left'?'start':align==='right'?'end':'middle';
+  g.append(sEl('text',{x,y:h.y+h.size*.34,'font-size':h.size,'font-weight':key==='title'?780:400,fill:key==='title'?'#172439':'#617083','text-anchor':anchor,class:'heading-text'},scene[key]));
+  svg.append(g);
+ }
+}
+function drawHeadingSelection(g){
+ if(!activeHeading||mode!=='structured')return;
+ const h=getHeading(activeHeading),l=h.x-h.w/2,t=h.y-h.h/2;
+ g.append(sEl('rect',{x:l,y:t,width:h.w,height:h.h,class:'heading-outline'}));
+ const z=Math.max(14,23/Math.max(.25,zoom));
+ for(const [dir,sx,sy] of [['nw',-1,-1],['n',0,-1],['ne',1,-1],['e',1,0],['se',1,1],['s',0,1],['sw',-1,1],['w',-1,0]]){
+  g.append(sEl('rect',{x:h.x+sx*h.w/2-z/2,y:h.y+sy*h.h/2-z/2,width:z,height:z,rx:2,class:'heading-handle','data-heading-handle':dir,'data-heading-key':activeHeading}));
+ }
+}
+function moveHeading(evt){
+ if(!headingDrag)return;
+ evt.stopImmediatePropagation();evt.preventDefault();
+ const d=headingDrag,p=posFromPointer(evt),dx=p.x-d.point.x,dy=p.y-d.point.y,h=getHeading(d.key);
+ if(d.handle){
+  const sx=d.handle.includes('e')?1:d.handle.includes('w')?-1:0,sy=d.handle.includes('s')?1:d.handle.includes('n')?-1:0;
+  h.w=Math.round(Math.max(140,d.original.w+sx*dx)/5)*5;
+  h.h=Math.round(Math.max(35,d.original.h+sy*dy)/5)*5;
+  h.x=d.original.x+sx*(h.w-d.original.w)/2;
+  h.y=d.original.y+sy*(h.h-d.original.h)/2;
+  h.autoFit=false;
+ }else{h.x=Math.round(d.original.x+dx);h.y=Math.round(d.original.y+dy)}
+ render();
+}
+function endHeading(evt){
+ if(!headingDrag)return;
+ evt.stopImmediatePropagation();evt.preventDefault();headingDrag=null;
+ try{$('canvas').releasePointerCapture(evt.pointerId)}catch{}
+ updateUI();
+}
+$('canvas').addEventListener('pointerdown',evt=>{
+ const hit=evt.target.closest?.('[data-heading-handle],[data-heading]');
+ if(!hit||mode!=='structured'||evt.button!==0)return;
+ evt.stopImmediatePropagation();evt.preventDefault();
+ const key=hit.dataset.headingKey||hit.dataset.heading,h=getHeading(key);
+ checkpoint();activeHeading=key;selected.clear();edgeSelect=null;
+ headingDrag={key,point:posFromPointer(evt),handle:hit.dataset.headingHandle||null,original:{...h}};
+ $('canvas').setPointerCapture(evt.pointerId);
+ render();showProps();
+},{capture:true});
+$('canvas').addEventListener('pointermove',moveHeading,{capture:true});
+$('canvas').addEventListener('pointerup',endHeading,{capture:true});
+$('canvas').addEventListener('pointercancel',endHeading,{capture:true});
+$('headingValue').addEventListener('change',()=>{
+ if(!activeHeading)return;
+ checkpoint();scene[activeHeading]=$('headingValue').value;
+ if(getHeading(activeHeading).autoFit!==false)fitHeading(activeHeading);
+ updateUI();
+});
+$('headingSize').addEventListener('pointerdown',()=>{if(activeHeading)checkpoint()});
+$('headingSize').addEventListener('input',()=>{
+ if(!activeHeading)return;
+ const h=getHeading(activeHeading);h.size=Number($('headingSize').value);
+ $('headingSizeLabel').textContent=h.size+'px';
+ if(h.autoFit!==false)fitHeading(activeHeading);
+ render();
+});
+$('headingSize').addEventListener('change',()=>updateUI());
+$('headingAlign').addEventListener('change',()=>{
+ if(!activeHeading)return;checkpoint();getHeading(activeHeading).align=$('headingAlign').value;updateUI();
+});
+$('headingAuto').addEventListener('change',()=>{
+ if(!activeHeading)return;checkpoint();getHeading(activeHeading).autoFit=$('headingAuto').checked;
+ if($('headingAuto').checked)fitHeading(activeHeading);
+ updateUI();
+});
+$('headingFit').onclick=()=>{
+ if(!activeHeading)return;checkpoint();fitHeading(activeHeading);updateUI();
+};
+$('headingCenter').onclick=()=>{
+ if(!activeHeading)return;checkpoint();getHeading(activeHeading).x=scene.width/2;updateUI();
+};
+for(const id of ['titleInput','subtitleInput']){
+ $(id).addEventListener('change',()=>{
+  if(mode!=='structured')return;
+  const key=id==='titleInput'?'title':'subtitle';
+  if(getHeading(key).autoFit!==false)fitHeading(key);
+  render();
  });
 }
 
