@@ -281,6 +281,7 @@ function applyKnob(id,val){
     nodeX:()=>{if(n)n.x=val},nodeY:()=>{if(n)n.y=val},
     nodeW:()=>{if(n)n.w=val},nodeH:()=>{if(n)n.h=val}};
   settings[id]?.();
+  if(['fontMain','fontSub','padNode'].includes(id)&&$('autoFitText')?.checked)fitAllRects();
   $(id).value=String(val);$(id).dataset.lastApplied=String(val);
   render();
 }
