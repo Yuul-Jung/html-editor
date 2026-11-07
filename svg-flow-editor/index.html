@@ -277,6 +277,8 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
  </div>
  <div id="quickGlobal" class="quick-scope" hidden>
   <div class="property-grid">
+   <label class="wide-property">도면 제목<input id="quickDocTitle" type="text" aria-label="도면 제목"></label>
+   <label class="wide-property">부제<input id="quickDocSubtitle" type="text" aria-label="도면 부제"></label>
    <label>기본 글자(px)<input id="quickGlobalFont" type="number" min="12" max="50" step="1"></label>
    <label>보조 글자(px)<input id="quickGlobalSub" type="number" min="10" max="40" step="1"></label>
    <label>기본 여백(px)<input id="quickGlobalPad" type="number" min="12" max="80" step="1"></label>
@@ -286,7 +288,14 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
   </div>
  </div>
  <div id="quickMultiple" class="quick-scope" hidden><p class="inspector-tip">여러 박스를 선택했습니다. 아래 일괄 편집 항목에서 한 번에 서식을 변경하세요.</p></div>
- <div id="quickHeading" class="quick-scope" hidden><p class="inspector-tip">선택한 도면 제목이나 부제의 글자 크기·정렬을 아래에서 조절하세요.</p></div>
+ <div id="quickHeading" class="quick-scope" hidden>
+ <div class="property-grid">
+  <label>글자 크기(px)<input id="quickHeadingSize" type="number" min="12" max="72" step="1"></label>
+  <label>글자 정렬<select id="quickHeadingAlign"><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></label>
+  <label>중심 X(px)<input id="quickHeadingX" type="number" step="5"></label>
+  <label>중심 Y(px)<input id="quickHeadingY" type="number" step="5"></label>
+ </div>
+ </div>
 </div>
 <section id="batchPanel" class="batch-panel" hidden>
   <div class="batch-header"><strong id="batchCount">0개 박스 선택</strong><button type="button" id="batchClear">선택 해제</button></div>
@@ -1314,7 +1323,16 @@ function updateQuickInspector(){
   safeValue('quickEdgeRoute',e.route||'auto');
   safeValue('quickEdgeLabel',e.label||'');safeValue('quickFromPort',e.fp||'bottom');safeValue('quickToPort',e.tp||'top');
  }
+ if(heading){
+  const h=getHeading(activeHeading);
+  safeValue('quickHeadingSize',h.size);
+  safeValue('quickHeadingAlign',h.align||'left');
+  safeValue('quickHeadingX',h.x);
+  safeValue('quickHeadingY',h.y);
+ }
  if(isDoc&&!single&&!multi&&!edge&&!heading){
+  safeValue('quickDocTitle',scene.title);
+  safeValue('quickDocSubtitle',scene.subtitle);
   safeValue('quickGlobalFont',scene.settings.fontMain);
   safeValue('quickGlobalSub',scene.settings.fontSub);
   safeValue('quickGlobalPad',scene.settings.pad);
@@ -1457,6 +1475,33 @@ function organizeQuickGroups(){
  if(edgeRoot&&!edgeRoot.children.length)edgeRoot.remove();
 }
 organizeQuickGroups();
+
+
+for(const [id,key] of [['quickDocTitle','title'],['quickDocSubtitle','subtitle']]){
+ $(id).addEventListener('change',()=>{
+  if(mode!=='structured'||selected.size||edgeSelect||activeHeading)return;
+  if(scene[key]===$(id).value)return;
+  checkpoint();scene[key]=$(id).value;
+  if(getHeading(key).autoFit!==false)fitHeading(key);
+  updateUI();
+ });
+}
+for(const [id,key,lo,hi] of [
+ ['quickHeadingSize','size',12,72],['quickHeadingX','x',-10000,10000],['quickHeadingY','y',-10000,10000]
+]){
+ $(id).addEventListener('change',()=>{
+  if(mode!=='structured'||!activeHeading)return;
+  const v=quickNumeric(id,lo,hi);if(v===null)return;
+  const h=getHeading(activeHeading);
+  checkpoint();h[key]=v;
+  if(key==='size'&&h.autoFit!==false)fitHeading(activeHeading);
+  updateUI();
+ });
+}
+$('quickHeadingAlign').addEventListener('change',()=>{
+ if(mode!=='structured'||!activeHeading)return;
+ const h=getHeading(activeHeading);checkpoint();h.align=$('quickHeadingAlign').value;updateUI();
+});
 
 updateQuickInspector();
 
