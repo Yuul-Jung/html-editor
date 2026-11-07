@@ -226,10 +226,37 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
 .preset-actions button{font-size:14px!important;min-height:43px;white-space:normal;line-height:1.35;padding:7px}
 .preset-note{font-size:12px;color:#5b6d86;line-height:1.5;margin:10px 0 0}
 @media(max-width:550px){.preset-actions{grid-template-columns:1fr}}
+
+/* v2.8 first-use UX: progressive disclosure and usable targets */
+.welcome-guide{border:1px solid #b7c8dd;background:#f1f6fc;border-radius:10px;padding:16px;margin:10px 0 16px;line-height:1.6}
+.welcome-title{font-size:17px;font-weight:800;color:#203a5c;display:flex;align-items:center;gap:9px}
+.welcome-badge{background:#e1eafb;border-radius:9px;padding:1px 9px;color:#3b5295;font-size:12px}
+.welcome-guide ol{margin:10px 0;padding-left:24px;font-size:14px}
+.welcome-guide li{padding:3px 0}
+.welcome-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:12px 0 4px}
+.welcome-actions button{min-height:44px;white-space:normal;font-size:14px}
+.welcome-hint{color:#536b86;font-size:12.5px;line-height:1.55;margin:9px 0 0}
+#inspectorAdvanced[hidden]{display:none}
+#toolbarMore{border:1px solid #9caec9;font-weight:750;background:#eef2fa}
+#toolbarMore[aria-expanded="true"]{background:#e7e1ff;border-color:#5c44b5}
+body:not(.show-extra-tools) .advanced-tool{display:none!important}
+.guide-support{border-top:1px solid #d6e0ec;padding:6px 0;margin:14px 0}
+.guide-support summary{font-size:14px;font-weight:750;color:#2f4a72;cursor:pointer;padding:8px}
+.guide-support .guide-details{padding:9px;background:#f7f9fe}
+.guide-support select{min-height:44px;font-size:15px;width:100%}
+#presetDetails{background:#fff;border:1px solid #cfd9e7;border-radius:9px;margin:0 0 14px}
+#presetDetails>summary{padding:12px 14px;background:#f3f6fb;cursor:pointer;font-size:15px;font-weight:750;color:#284465}
+#presetDetails[open]>summary{border-bottom:1px solid #dfe5ef}
+#presetDetails>.preset-panel{border:0;border-radius:0}
+#selectionFocusHint{font-size:13px;color:#506b8b;margin:0 0 10px}
+.quick-inspector{padding:12px}
+.quick-inspector-title{margin-bottom:10px}
+@media(min-width:871px){.toolbar button,.toolbar .filebtn{min-height:39px}}
+@media(max-width:870px){.welcome-guide{padding:12px}.welcome-actions{grid-template-columns:1fr}.welcome-actions button{width:100%}}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.7</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.8</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="marqueeBtn" type="button" aria-pressed="false">▣ 영역 선택</button><button id="selectAllBoxes" type="button">전체 박스</button><button id="clearBoxSelection" type="button">선택 해제</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -252,7 +279,15 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
      aria-valuenow="600" title="좌우로 드래그하여 편집창 너비 조절 · 더블클릭 초기화"></div>
 <aside>
 <div class="inspector-top"><h2>속성 편집 <span id="selectionTitle" style="color:#6b5ac1">· 전체 도면</span></h2>
-<span class="inspector-caption">선택한 객체의 설정만 표시됩니다</span></div>
+<span class="inspector-caption">도면의 박스·화살표를 클릭하면 해당 설정이 나타납니다.</span></div>
+<div id="welcomeGuide" class="welcome-guide" role="region" aria-label="처음 사용 안내">
+ <div class="welcome-title">처음 사용하기 <span class="welcome-badge">3단계</span></div>
+ <ol><li><strong>박스 선택</strong> — 왼쪽 그림을 클릭</li>
+ <li><strong>내용·색상 수정</strong> — 이 설정창에서 변경</li>
+ <li><strong>SVG 저장</strong> — 상단의 SVG 저장 클릭</li></ol>
+ <div class="welcome-actions"><button id="demoSelect" type="button" class="primary">예제 박스 선택해 보기</button><button id="hideWelcome" type="button">안내 닫기</button></div>
+ <p class="welcome-hint">여러 개 선택: Ctrl+클릭 · 빈 공간 드래그. 이동: 박스 드래그.</p>
+</div>
 <div id="quickInspector" class="quick-inspector">
  <div class="quick-inspector-title">기본 스타일 선택</div>
  <div id="stylePresetPanel" class="preset-panel">
@@ -1613,6 +1648,97 @@ $('quickHeadingAlign').addEventListener('change',()=>{
 });
 
 updateQuickInspector();
+
+
+/* v2.8 guided first-use mode. All legacy controls remain available. */
+const toolBar=document.querySelector('.toolbar');
+const moreButton=document.createElement('button');
+moreButton.id='toolbarMore';moreButton.type='button';
+moreButton.setAttribute('aria-expanded','false');
+moreButton.setAttribute('aria-controls','advancedToolbar');
+moreButton.textContent='더 많은 도구 ▾';
+$('saveSVG').insertAdjacentElement('afterend',moreButton);
+// Keep essential controls visible; advanced functions remain accessible with one click.
+const advancedControlIds=['marqueeBtn','selectAllBoxes','clearBoxSelection',
+ 'autoLayout','gridToggle','duplicateSelection','viewSvgSource',
+ 'savePNG','saveJSON','loadJSON','loadSVG'];
+for(const id of advancedControlIds){
+ const el=$(id);
+ if(!el)continue;
+ const control=el.closest('.filebtn')||el;
+ control.classList.add('advanced-tool');
+}
+for(const el of [document.querySelector('#vizioMode')]){
+ if(el)el.classList.add('advanced-tool');
+}
+toolBar.querySelectorAll('.sep').forEach(s=>s.classList.add('advanced-tool'));
+moreButton.onclick=()=>{
+ const open=document.body.classList.toggle('show-extra-tools');
+ moreButton.setAttribute('aria-expanded',String(open));
+ moreButton.textContent=open?'도구 간단히 ▴':'더 많은 도구 ▾';
+};
+const intro=$('welcomeGuide');
+const hideIntro=()=>{intro.hidden=true;try{localStorage.setItem('soc_svg_intro_hidden_v1','1')}catch{}};
+try{intro.hidden=localStorage.getItem('soc_svg_intro_hidden_v1')==='1'}catch{}
+$('hideWelcome').onclick=hideIntro;
+$('demoSelect').onclick=()=>{
+ if(mode!=='structured'){toast('예제 JSON 도면에서 박스를 선택할 수 있습니다.');return;}
+ const n=scene.nodes.find(n=>n.type==='rect')||scene.nodes[0];if(!n)return;
+ selected.clear();selected.add(n.id);edgeSelect=null;activeHeading=null;
+ updateUI();hideIntro();
+ const canvas=$('viewport'),y=n.y*zoom,x=n.x*zoom;
+ canvas.scrollTop=Math.max(0,y-canvas.clientHeight*.32);
+ canvas.scrollLeft=Math.max(0,x-canvas.clientWidth*.50);
+ const asideEl=document.querySelector('aside');if(asideEl)asideEl.scrollTop=0;
+ toast('박스를 선택했습니다. 오른쪽 글자·색상 설정을 변경해 보세요.');
+};
+const quick=$('quickInspector');
+const presetTitle=quick.querySelector('.quick-inspector-title');
+const presetPane=$('stylePresetPanel');
+const presetDisclosure=document.createElement('details');
+presetDisclosure.id='presetDetails';
+const presetSummary=document.createElement('summary');
+presetSummary.textContent='기본 스타일 6종 · 펼쳐서 적용';
+presetDisclosure.append(presetSummary,presetPane);
+quick.insertBefore(presetDisclosure,presetTitle);
+if(presetTitle)presetTitle.remove();
+const fastTitle=quick.querySelector('.quick-inspector-title');
+if(fastTitle)fastTitle.textContent='선택한 대상 빠른 편집';
+const guideSupport=document.createElement('details');
+guideSupport.className='guide-support';
+const helpSummary=document.createElement('summary');
+helpSummary.textContent='연결선 직접 선택 · 조작 도움말';
+const guideDetails=document.createElement('div');guideDetails.className='guide-details';
+guideSupport.append(helpSummary,guideDetails);
+guideDetails.append(edgePickerBlock,helpPanel);
+$('inspectorAdvanced').insertAdjacentElement('afterend',guideSupport);
+const selectionHint=document.createElement('p');
+selectionHint.id='selectionFocusHint';
+quick.insertBefore(selectionHint,quick.querySelector('.quick-inspector-title'));
+let lastGuidedState='';
+function updateGuidedInspector(){
+ const count=selected.size;
+ const state=mode==='raw'?'raw':edgeSelect?'edge':activeHeading?'heading':count>1?'multiple':count===1?'single':'none';
+ if(lastGuidedState!==state){
+  if(count>0&&mode==='structured'&&lastGuidedState==='none'){
+   $('inspectorAdvanced').open=false;
+  }
+  if(state==='single'||state==='multiple')presetDisclosure.open=false;
+  lastGuidedState=state;
+ }
+ selectionHint.textContent=state==='none'?'먼저 왼쪽 도면에서 수정할 박스를 선택하세요.':
+  state==='single'?'선택한 박스의 글자와 모양을 아래에서 바꿀 수 있습니다.':
+  state==='multiple'?count+'개 박스를 선택했습니다. 아래 일괄 편집에서 한 번에 적용하세요.':
+  state==='edge'?'선 색상·굵기와 연결점을 아래에서 수정하세요.':
+  state==='heading'?'제목의 글꼴과 위치를 아래에서 수정하세요.':'외부 SVG 편집 모드입니다.';
+ // Keep global document settings accessible but collapsed until needed.
+ $('quickGlobal').hidden=state!=='none';
+ // Novices can see the available presets after selecting nodes, not on every startup.
+ $('stylePresetPanel').hidden=mode!=='structured';
+}
+const previousGuidedUI=updateUI;
+updateUI=function(){previousGuidedUI();updateGuidedInspector()};
+updateGuidedInspector();
 
 </script>
 </body></html>
