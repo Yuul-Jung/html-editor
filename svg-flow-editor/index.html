@@ -253,11 +253,30 @@ body:not(.show-extra-tools) .advanced-tool{display:none!important}
 .quick-inspector-title{margin-bottom:10px}
 @media(min-width:871px){.toolbar button,.toolbar .filebtn{min-height:39px}}
 @media(max-width:870px){.welcome-guide{padding:12px}.welcome-actions{grid-template-columns:1fr}.welcome-actions button{width:100%}}
+
+.chapter-selector{display:flex;align-items:center;gap:9px;white-space:nowrap;font-size:14px;font-weight:700;color:#233b5c;padding:0 6px}
+.chapter-selector select{width:242px;max-width:38vw;min-height:42px;font-size:15px}
+#loadChapter{min-height:42px!important}
+@media(max-width:870px){.chapter-selector select{width:185px;max-width:60vw}.chapter-selector{font-size:13px}}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.8</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.9</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
+<label id="chapterSelectLabel" class="chapter-selector">제2부 도면
+<select id="chapterSelect" aria-label="제2부 장별 플로우차트 선택">
+<option value="01">01장 · UART 명령 분류</option>
+<option value="02">02장 · FND 4자리 표시</option>
+<option value="03">03장 · 버튼/인터럽트</option>
+<option value="04">04장 · PWM 밝기</option>
+<option value="05">05장 · CdS 조도</option>
+<option value="06">06장 · 초음파/경보</option>
+<option value="07">07장 · DC 모터</option>
+<option value="08">08장 · XADC</option>
+<option value="09">09장 · 자동/수동 통합</option>
+<option value="10">10장 · 안전 캡스톤</option>
+</select></label>
+<button type="button" id="loadChapter" class="primary">선택 장 열기</button>
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="marqueeBtn" type="button" aria-pressed="false">▣ 영역 선택</button><button id="selectAllBoxes" type="button">전체 박스</button><button id="clearBoxSelection" type="button">선택 해제</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
 <span class="sep"></span><button id="fit">화면 맞춤</button><button id="zoomOut">－</button><span id="zoomText">100%</span><button id="zoomIn">＋</button>
@@ -642,9 +661,9 @@ $('distributeY').onclick=()=>{if(mode!=='structured'||selected.size<3){toast('�
 $('resetScene').onclick=()=>{if(!confirm('현재 도면을 초기화할까요? 필요하면 먼저 JSON으로 저장하세요.'))return;scene=baseScene();history=[];future=[];selected.clear();edgeSelect=null;mode='structured';rawDoc=null;$('modeLabel').textContent='편집 모드: 노드';updateUI();fitCanvas();toast('01장 기본 예제를 불러왔습니다.')};
 function svgString(){const s=$('canvas');const copy=s.cloneNode(true);copy.querySelectorAll('#vizio-overlays,.edge-hit,#vizio-preview,#rubberBand,#editor-grid').forEach(el=>el.remove());copy.querySelectorAll('.selected').forEach(g=>g.classList.remove('selected'));copy.querySelectorAll('path').forEach(p=>{if(p.closest('.edge')){const edge=p.closest('[data-edge]');const model=edge&&scene.edges.find(e=>e.id===edge.dataset.edge);p.setAttribute('stroke',model?.strokeColor||'#5A1E1E');p.setAttribute('stroke-width',String(model?.strokeWidth||Math.max(3.5,scene.settings.stroke)))}});copy.querySelectorAll('.node-shape').forEach(p=>{p.removeAttribute('filter');const g=p.closest('[data-node]');const node=g&&getNode(g.dataset.node);p.setAttribute('stroke',node?.strokeColor||'#1F3A5F');p.setAttribute('stroke-width',String(node?.strokeWidth||scene.settings.stroke))});copy.removeAttribute('style');copy.setAttribute('xmlns',NS);copy.setAttribute('version','1.1');copy.setAttribute('width',s.getAttribute('width'));copy.setAttribute('height',s.getAttribute('height'));return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(copy)}
 function download(text,type,name){const blob=new Blob([text],{type}),a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-$('saveSVG').onclick=()=>{download(svgString(),'image/svg+xml;charset=utf-8','P2_01_Main_Flow_edited.svg');toast('SVG 파일을 저장했습니다.')};
-$('saveJSON').onclick=()=>{if(mode!=='structured'){toast('외부 SVG는 SVG로 저장해 주세요.');return;}download(JSON.stringify(scene,null,2),'application/json;charset=utf-8','P2_01_Flow_Project.json');toast('편집용 JSON 작업 파일 저장')};
-$('savePNG').onclick=()=>{const xml=svgString();const u=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(im,0,0);URL.revokeObjectURL(u);c.toBlob(b=>{if(!b){toast('PNG 변환 실패');return;}const v=URL.createObjectURL(b),a=document.createElement('a');a.href=v;a.download='P2_01_Main_Flow_edited.png';a.click();setTimeout(()=>URL.revokeObjectURL(v),1000);toast('PNG 파일을 저장했습니다.')},'image/png')};im.onerror=()=>{URL.revokeObjectURL(u);toast('PNG 변환 실패: 원본 SVG 속성을 확인해 주세요.')};im.src=u};
+$('saveSVG').onclick=()=>{download(svgString(),'image/svg+xml;charset=utf-8',chapterFileStem()+'_Main_Flow_edited.svg');toast('SVG 파일을 저장했습니다.')};
+$('saveJSON').onclick=()=>{if(mode!=='structured'){toast('외부 SVG는 SVG로 저장해 주세요.');return;}download(JSON.stringify(scene,null,2),'application/json;charset=utf-8',chapterFileStem()+'_Flow_Project.json');toast('편집용 JSON 작업 파일 저장')};
+$('savePNG').onclick=()=>{const xml=svgString();const u=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(im,0,0);URL.revokeObjectURL(u);c.toBlob(b=>{if(!b){toast('PNG 변환 실패');return;}const v=URL.createObjectURL(b),a=document.createElement('a');a.href=v;a.download=chapterFileStem()+'_Main_Flow_edited.png';a.click();setTimeout(()=>URL.revokeObjectURL(v),1000);toast('PNG 파일을 저장했습니다.')},'image/png')};im.onerror=()=>{URL.revokeObjectURL(u);toast('PNG 변환 실패: 원본 SVG 속성을 확인해 주세요.')};im.src=u};
 $('loadJSON').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!Array.isArray(x.nodes)||!Array.isArray(x.edges)||!x.settings||typeof x.title!=='string')throw Error('지원하지 않는 구조');scene=x;mode='structured';rawDoc=null;history=[];future=[];selected.clear();edgeSelect=null;$('modeLabel').textContent='편집 모드: 노드';updateUI();fitCanvas();$('fileStatus').textContent=f.name+' 불러오기 완료';}catch(err){toast('JSON 불러오기 실패: '+err.message)}e.target.value=''};
 $('loadSVG').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const txt=await f.text();const p=new DOMParser().parseFromString(txt,'image/svg+xml');if(p.querySelector('parsererror')||p.documentElement.localName!=='svg')throw Error('유효한 SVG가 아님');for(const el of Array.from(p.querySelectorAll('*'))){if(['script','foreignObject','iframe','image','use','a','style','animate','animateTransform','set'].includes(el.localName)){el.remove();continue;}for(const attr of Array.from(el.attributes)){if(attr.name.startsWith('on')||/href|url\(/i.test(attr.name+' '+attr.value))el.removeAttribute(attr.name)}}mode='raw';rawDoc=p;rawSelected=null;selected.clear();edgeSelect=null;$('modeLabel').textContent='편집 모드: 외부 SVG';renderRaw();showProps();fitCanvas();$('fileStatus').textContent=f.name+' 원본 요소 편집 모드';toast('SVG를 불러왔습니다. 도형 선택·이동·텍스트 수정·재저장 가능')}catch(err){toast('SVG 불러오기 실패: '+err.message)}e.target.value=''};
 window.addEventListener('keydown',e=>{const t=e.target?.tagName?.toLowerCase();if(['input','textarea','select'].includes(t))return;if(e.key==='Delete'||e.key==='Backspace'){deleteSelected();e.preventDefault()}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo()}else if(mode==='structured'&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected.size){checkpoint();let dx=e.key==='ArrowRight'?5:e.key==='ArrowLeft'?-5:0,dy=e.key==='ArrowDown'?5:e.key==='ArrowUp'?-5:0;[...selected].map(getNode).forEach(n=>{n.x+=dx;n.y+=dy});render();showProps();e.preventDefault()}});
@@ -1748,6 +1767,62 @@ quick.insertBefore(globalDisclosure,quick.querySelector('#quickMultiple'));
 const previousGuidedUI=updateUI;
 updateUI=function(){previousGuidedUI();updateGuidedInspector()};
 updateGuidedInspector();
+
+
+/* v2.9: Part 2 chapter drafts, preserving Part 1 and the verified chapter 01 example. */
+function chapterFileStem(){
+ const m=String(scene.chapter||scene.title||'P2-01').match(/P2[-_](\d{2})/i);
+ return 'P2_'+(m?m[1]:'01');
+}
+function validateChapterScene(data){
+ if(!data||typeof data!=='object'||!Array.isArray(data.nodes)||!Array.isArray(data.edges)||
+    !data.settings||!Number.isFinite(data.width)||!Number.isFinite(data.height))throw Error('도면 구조가 올바르지 않습니다.');
+ const ids=new Set(data.nodes.map(n=>n.id));
+ if(ids.size!==data.nodes.length)throw Error('중복된 도형 ID가 있습니다.');
+ for(const e of data.edges)if(!ids.has(e.from)||!ids.has(e.to))throw Error('연결선 대상 도형이 없습니다.');
+ return data;
+}
+$('loadChapter').onclick=async()=>{
+ const num=$('chapterSelect').value||'01';
+ const prior=chapterFileStem().slice(-2);
+ if(num===prior&&mode==='structured'){toast('이미 '+num+'장 도면이 열려 있습니다.');return;}
+ if(!confirm('현재 편집 내용은 새 장을 열면 교체됩니다. 작업 저장(JSON)을 먼저 하셨나요?'))return;
+ $('loadChapter').disabled=true;
+ try{
+  let next;
+  if(num==='01')next=baseScene();
+  else{
+   const url='./chapters/P2_'+num+'.json';
+   const response=await fetch(url,{cache:'no-cache'});
+   if(!response.ok)throw Error('GitHub Pages에서 장별 파일을 찾을 수 없습니다 (HTTP '+response.status+')');
+   next=validateChapterScene(await response.json());
+  }
+  scene=next;mode='structured';rawDoc=null;
+  history=[];future=[];selected.clear();edgeSelect=null;activeHeading=null;
+  $('modeLabel').textContent='편집 모드: 노드 · P2-'+num;
+  updateUI();fitCanvas();
+  $('fileStatus').textContent='P2-'+num+'장 '+(num==='01'?'기존 예제':'개념도 초안 (코드·보드 미검증)')+' 불러오기';
+  toast(num+'장 도면을 불러왔습니다.');
+ }catch(err){
+  toast('장별 도면 불러오기 실패: '+err.message);
+  $('chapterSelect').value=prior;
+ }finally{$('loadChapter').disabled=false;}
+};
+$('chapterSelect').addEventListener('change',()=>{
+ const num=$('chapterSelect').value;
+ $('loadChapter').textContent=num+'장 열기';
+});
+$('chapterSelect').value='01';
+$('loadChapter').textContent='01장 열기';
+// Keep toolbar picker in sync with JSON imports and the built-in reset.
+const originalChapterUI=updateUI;
+updateUI=function(){
+ originalChapterUI();
+ const chapter=chapterFileStem().slice(-2);
+ if(mode==='structured'&&$('chapterSelect').querySelector('option[value="'+chapter+'"]')){
+  // The dropdown remains an explicit target selection, not forced to track edits.
+ }
+};
 
 </script>
 </body></html>
