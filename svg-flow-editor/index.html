@@ -34,10 +34,36 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 #rawEditor{display:none} .hint{font-size:11px;color:#66758a}.slideline{display:grid;grid-template-columns:1fr 42px;align-items:center;gap:8px}
 .badge{font-size:11px;color:#4b3aa2;font-weight:700;background:#eeeaff;border-radius:4px;padding:2px 5px}
 @media(max-width:870px){header .sub{display:none}.layout{grid-template-columns:minmax(0,1fr);height:auto}.stage{height:65dvh;min-height:450px}aside{border-left:none;border-top:1px solid var(--line);max-height:none}.toolbar{padding:7px 8px}.toolbar button,.toolbar .filebtn{padding:7px 8px}.sep{display:none}}
+
+/* v1.1 — touch-friendly direct controls */
+.knob{display:grid;grid-template-columns:36px minmax(60px,1fr) 36px 70px;gap:6px;align-items:center}
+.knob button{min-width:36px;height:43px;padding:0;font-size:20px;font-weight:700;border-color:#8c98aa}
+.knob input[type=range]{width:100%;padding:0;border:0;height:42px;accent-color:#4635b1;cursor:pointer;touch-action:pan-y}
+.knob input[type=number]{width:70px;height:43px;text-align:center;padding:4px}
+.knob:focus-within{outline:2px solid #a79bf0;outline-offset:3px;border-radius:5px}
+#mobileTools{position:absolute;z-index:4;right:12px;bottom:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:#fffffff5;padding:7px;border:1px solid #9eabc0;border-radius:9px;box-shadow:0 3px 14px #19273a2a}
+#mobileTools button{font-size:15px;font-weight:650;min-height:43px;min-width:43px}
+#mobileTools .primary{color:#fff}
+#mobileTools .pct{font-variant-numeric:tabular-nums;color:#34435a;min-width:49px;text-align:center;font-weight:700}
+#viewport{touch-action:none;overscroll-behavior:contain}
+#canvas{touch-action:none}
+@media(max-width:870px){
+ .toolbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;white-space:nowrap;position:sticky;top:0;z-index:7}
+ .toolbar button,.toolbar .filebtn{min-height:44px}
+ .layout{display:flex;flex-direction:column}
+ .stage{height:65dvh;min-height:380px;flex:none}
+ aside{padding:18px 14px 36px}
+ aside input,aside textarea,aside select{font-size:16px}
+ .knob{grid-template-columns:42px minmax(60px,1fr) 42px 70px}
+ .knob button{height:46px}
+ #mobileTools{bottom:8px;right:8px;left:8px;justify-content:center}
+ #mobileTools button{flex:1}
+}
+
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.0</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.1</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -194,5 +220,106 @@ $('loadSVG').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{con
 window.addEventListener('keydown',e=>{const t=e.target?.tagName?.toLowerCase();if(['input','textarea','select'].includes(t))return;if(e.key==='Delete'||e.key==='Backspace'){deleteSelected();e.preventDefault()}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo()}else if(mode==='structured'&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected.size){checkpoint();let dx=e.key==='ArrowRight'?5:e.key==='ArrowLeft'?-5:0,dy=e.key==='ArrowDown'?5:e.key==='ArrowUp'?-5:0;[...selected].map(getNode).forEach(n=>{n.x+=dx;n.y+=dy});render();showProps();e.preventDefault()}});
 window.addEventListener('resize',()=>{if(window.innerWidth<870&&zoom>0.8)fitCanvas()});
 updateUI();setTimeout(fitCanvas,100);
+
+/* v1.1: sliders and step buttons for all geometry/style values */
+const knobIds=['pageW','fontMain','fontSub','strokeW','gapY','padNode','nodeX','nodeY','nodeW','nodeH'];
+function knobBounds(id){
+  if(id==='nodeX') return [0,Math.max(1500,scene.width),5];
+  if(id==='nodeY') return [0,Math.max(1800,scene.height),5];
+  const field=$(id);return [Number(field.min)||0,Number(field.max)||3000,Number(field.step)||1];
+}
+function applyKnob(id,val){
+  const n=selected.size===1?getNode([...selected][0]):null;
+  const settings={pageW:()=>scene.width=val,fontMain:()=>scene.settings.fontMain=val,
+    fontSub:()=>scene.settings.fontSub=val,strokeW:()=>scene.settings.stroke=val,
+    gapY:()=>scene.settings.gap=val,padNode:()=>scene.settings.pad=val,
+    nodeX:()=>{if(n)n.x=val},nodeY:()=>{if(n)n.y=val},
+    nodeW:()=>{if(n)n.w=val},nodeH:()=>{if(n)n.h=val}};
+  settings[id]?.();
+  $(id).value=String(val);$(id).dataset.lastApplied=String(val);
+  render();
+}
+function syncKnobs(){
+  for(const id of knobIds){
+    const num=$(id),range=$('slider_'+id);if(!num||!range)continue;
+    const [min,max,step]=knobBounds(id);
+    range.min=String(min);range.max=String(max);range.step=String(step);
+    range.value=num.value;
+    const detail=$('value_'+id);
+    if(detail)detail.textContent=String(num.value);
+  }
+}
+for(const id of knobIds){
+  const num=$(id);if(!num)continue;
+  const [min,max,step]=knobBounds(id);
+  const parent=num.parentNode,wrap=document.createElement('div');
+  wrap.className='knob';wrap.setAttribute('role','group');
+  wrap.setAttribute('aria-label',(parent.querySelector('label')?.textContent||id)+' 바로 조절');
+  const minus=document.createElement('button');minus.type='button';minus.textContent='−';minus.setAttribute('aria-label','값 줄이기');
+  const plus=document.createElement('button');plus.type='button';plus.textContent='+';plus.setAttribute('aria-label','값 늘리기');
+  const slider=document.createElement('input');slider.type='range';slider.id='slider_'+id;
+  slider.min=String(min);slider.max=String(max);slider.step=String(step);slider.value=num.value;
+  slider.setAttribute('aria-label',(parent.querySelector('label')?.textContent||id)+' 슬라이더');
+  num.title='숫자 직접 입력도 가능';num.setAttribute('aria-label',(parent.querySelector('label')?.textContent||id)+' 현재 값');
+  parent.insertBefore(wrap,num);wrap.append(minus,slider,plus,num);
+  let gesture=false;
+  const update=v=>{
+    const [lo,hi,delta]=knobBounds(id);
+    const rounded=Number(Math.min(hi,Math.max(lo,Math.round(v/delta)*delta)).toFixed(2));
+    applyKnob(id,rounded);slider.value=String(rounded);
+  };
+  slider.addEventListener('pointerdown',()=>{checkpoint();gesture=true},{passive:true});
+  slider.addEventListener('input',()=>{
+    if(!gesture){checkpoint();gesture=true;}
+    update(Number(slider.value));
+  });
+  slider.addEventListener('change',()=>{gesture=false;showProps();syncKnobs()});
+  for(const [b,sign] of [[minus,-1],[plus,1]]){
+    b.addEventListener('click',()=>{
+      if(mode!=='structured')return;checkpoint();const [, ,delta]=knobBounds(id);
+      update((Number(num.value)||0)+sign*delta);showProps();syncKnobs();
+    });
+  }
+  num.addEventListener('change',syncKnobs);
+}
+const stage=document.querySelector('.stage');
+const mobile=document.createElement('div');
+mobile.id='mobileTools';mobile.setAttribute('aria-label','도면 빠른 조절');
+mobile.innerHTML='<button id="quickMinus" type="button" aria-label="도면 축소">−</button>'+
+ '<span class="pct" id="quickZoom">100%</span>'+
+ '<button id="quickPlus" type="button" aria-label="도면 확대">＋</button>'+
+ '<button id="quickFit" type="button">맞춤</button>'+
+ '<button id="quickProps" type="button" class="primary">선택 편집</button>';
+stage.appendChild(mobile);
+$('quickMinus').onclick=()=>$('zoomOut').click();
+$('quickPlus').onclick=()=>$('zoomIn').click();
+$('quickFit').onclick=()=>$('fit').click();
+$('quickProps').onclick=()=>{
+  document.querySelector('aside').scrollIntoView({behavior:'smooth',block:'start'});
+  if(!selected.size&&!edgeSelect)toast('도형을 먼저 선택하면 해당 항목의 슬라이더가 나타납니다.');
+};
+const originalUpdateZoom=updateZoom;
+updateZoom=function(){originalUpdateZoom();$('quickZoom').textContent=Math.round(zoom*100)+'%'};
+const originalUpdateUI=updateUI;
+updateUI=function(){originalUpdateUI();syncKnobs()};
+let pan=null;
+$('viewport').addEventListener('pointerdown',e=>{
+  if(e.target.closest?.('[data-node],[data-edge]'))return;
+  if(e.button!==0)return;
+  pan={x:e.clientX,y:e.clientY,left:$('viewport').scrollLeft,top:$('viewport').scrollTop};
+  $('viewport').setPointerCapture(e.pointerId);
+},{capture:true});
+$('viewport').addEventListener('pointermove',e=>{
+  if(!pan)return;
+  $('viewport').scrollLeft=pan.left-(e.clientX-pan.x);
+  $('viewport').scrollTop=pan.top-(e.clientY-pan.y);
+},{capture:true});
+const endPan=()=>pan=null;
+$('viewport').addEventListener('pointerup',endPan,{capture:true});
+$('viewport').addEventListener('pointercancel',endPan,{capture:true});
+const oldFit=fitCanvas;
+fitCanvas=function(){oldFit();syncKnobs()};
+syncKnobs();
+
 </script>
 </body></html>
