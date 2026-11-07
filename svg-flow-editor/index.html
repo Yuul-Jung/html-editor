@@ -88,7 +88,7 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.6</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.7</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -236,6 +236,47 @@ function drawText(group,n){
  group.appendChild(sEl('text',{x,y:titleY,'text-anchor':'start','font-size':fs,'font-weight':750,fill:'#1b293f','pointer-events':'none'},n.title||''));
  if(hasSub)group.appendChild(sEl('text',{x,y:n.y+ss*1.22,'text-anchor':'start','font-size':ss,'font-weight':400,fill:'#34435a','pointer-events':'none'},n.sub));
 }
+/* v1.7: render-aware geometry repair. Keep all existing node centers and edges. */
+let geometryPass=0;
+function refineRenderedText(svg){
+ if(geometryPass>=2){geometryPass=0;return false;}
+ let changed=false;
+ for(const n of scene.nodes){
+  const g=Array.from(svg.querySelectorAll('#nodes [data-node]')).find(el=>el.dataset.node===n.id);
+  if(!g)continue;
+  const texts=Array.from(g.querySelectorAll('text'));
+  if(!texts.length)continue;
+  if(n.type==='rect'&&$('autoFitText')?.checked){
+   const pad=Math.max(12,Number(scene.settings.pad)||12)+8;
+   const actual=Math.max(...texts.map(t=>{try{return t.getBBox().width}catch{return 0}}));
+   if(actual>0){
+    const neededW=Math.ceil((actual+pad*2+8)/5)*5;
+    if(neededW>n.w+1){n.w=neededW;changed=true;}
+   }
+   let upper=Infinity,lower=-Infinity;
+   for(const t of texts){try{const b=t.getBBox();upper=Math.min(upper,b.y);lower=Math.max(lower,b.y+b.height)}catch{}}
+   if(Number.isFinite(upper)&&Number.isFinite(lower)){
+    const actualHeight=(lower-upper)+pad*2;
+    const neededH=Math.ceil(actualHeight/5)*5;
+    if(neededH>n.h+1){n.h=neededH;changed=true;}
+   }
+  }else if(n.type==='diamond'){
+   // For a diamond, the middle 54% is the safe text lane.
+   const maxWidth=n.w*.54;
+   for(const t of texts){
+    try{
+     const width=t.getBBox().width;
+     if(width>maxWidth&&width>0){
+      const fs=parseFloat(t.getAttribute('font-size'))||18;
+      t.setAttribute('font-size',String(Math.max(10,fs*maxWidth/width*.96)));
+     }
+    }catch{}
+   }
+  }
+ }
+ if(changed){geometryPass++;return true;}
+ geometryPass=0;return false;
+}
 function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.replaceChildren();s.setAttribute('width',scene.width);s.setAttribute('height',scene.height);s.setAttribute('viewBox',`0 0 ${scene.width} ${scene.height}`);
  const defs=sEl('defs');const marker=sEl('marker',{id:'arrowhead',markerWidth:10,markerHeight:10,refX:9,refY:5,orient:'auto',markerUnits:'userSpaceOnUse'});marker.appendChild(sEl('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#233247'}));defs.append(marker);s.append(defs);
  s.append(sEl('rect',{x:0,y:0,width:scene.width,height:scene.height,fill:'#fff'}));
@@ -244,6 +285,8 @@ function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.repl
  g.append(sEl('text',{x:lx,y:ly,'text-anchor':'middle','font-size':17,'font-weight':750,fill:'#25334a',class:'edge-label'},e.label));}
  eg.append(g)});s.append(eg);
  const ng=sEl('g',{id:'nodes'});scene.nodes.forEach(n=>{const g=sEl('g',{'data-node':n.id,class:'node'+(selected.has(n.id)?' selected':'')});let shape;if(n.type==='diamond'){const pts=[[n.x,n.y-n.h/2],[n.x+n.w/2,n.y],[n.x,n.y+n.h/2],[n.x-n.w/2,n.y]];shape=sEl('polygon',{points:pts.map(p=>p.join(',')).join(' '),fill:n.fill,stroke:'#62491d','stroke-width':scene.settings.stroke,'stroke-linejoin':'round',class:'node-shape','pointer-events':'all'});}else{shape=sEl('rect',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,fill:n.fill,stroke:'#1b293d','stroke-width':scene.settings.stroke,class:'node-shape','pointer-events':'all'});}g.append(shape);drawText(g,n);ng.append(g)});s.append(ng);
+ // Check the SVG's actual rendered glyph bounds, not just Canvas estimates.
+ if(refineRenderedText(s)){return render();}
  drawEditHandles(s);
  $('work').style.width=(scene.width*zoom)+'px';$('work').style.height=(scene.height*zoom)+'px';s.style.width=(scene.width*zoom)+'px';s.style.height=(scene.height*zoom)+'px'; // SVG width CSS scaled by zoom; pointer coordinate mapping uses screen CTM
  updateZoom();
