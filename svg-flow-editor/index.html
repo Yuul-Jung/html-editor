@@ -1656,6 +1656,7 @@ const moreButton=document.createElement('button');
 moreButton.id='toolbarMore';moreButton.type='button';
 moreButton.setAttribute('aria-expanded','false');
 moreButton.setAttribute('aria-controls','advancedToolbar');
+toolBar.id='advancedToolbar';
 moreButton.textContent='더 많은 도구 ▾';
 $('saveSVG').insertAdjacentElement('afterend',moreButton);
 // Keep essential controls visible; advanced functions remain accessible with one click.
@@ -1714,7 +1715,7 @@ guideDetails.append(edgePickerBlock,helpPanel);
 $('inspectorAdvanced').insertAdjacentElement('afterend',guideSupport);
 const selectionHint=document.createElement('p');
 selectionHint.id='selectionFocusHint';
-quick.insertBefore(selectionHint,quick.querySelector('.quick-inspector-title'));
+quick.insertBefore(selectionHint,presetDisclosure);
 let lastGuidedState='';
 function updateGuidedInspector(){
  const count=selected.size;
@@ -1732,10 +1733,18 @@ function updateGuidedInspector(){
   state==='edge'?'선 색상·굵기와 연결점을 아래에서 수정하세요.':
   state==='heading'?'제목의 글꼴과 위치를 아래에서 수정하세요.':'외부 SVG 편집 모드입니다.';
  // Keep global document settings accessible but collapsed until needed.
- $('quickGlobal').hidden=state!=='none';
+ globalDisclosure.hidden=state!=='none';
  // Novices can see the available presets after selecting nodes, not on every startup.
  $('stylePresetPanel').hidden=mode!=='structured';
 }
+// Global document controls stay available without overwhelming new users.
+const globalScope=$('quickGlobal');
+const globalDisclosure=document.createElement('details');
+globalDisclosure.id='globalDocumentSettings';globalDisclosure.className='inspector-fold';
+const globalSummary=document.createElement('summary');
+globalSummary.textContent='도면 전체 설정 · 제목 · 글자 크기';
+globalDisclosure.append(globalSummary,globalScope);
+quick.insertBefore(globalDisclosure,quick.querySelector('#quickMultiple'));
 const previousGuidedUI=updateUI;
 updateUI=function(){previousGuidedUI();updateGuidedInspector()};
 updateGuidedInspector();
