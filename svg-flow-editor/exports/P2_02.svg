@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1190" viewBox="0 0 1500 1190" role="img" aria-labelledby="title desc">
+<title id="title">P2-02 · FND 4자리 숫자 표시</title>
+<desc id="desc">UART 명령 기반 FND 표시 · 선행 01장 기능 유지 · 설계 개념도(코드·보드 미검증). 편집 가능한 원본은 같은 이름의 JSON 파일입니다.</desc>
+<rect width="100%" height="100%" fill="#fff"/>
+<defs><marker id="arrow" markerWidth="16" markerHeight="16" refX="14" refY="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L16,8 L0,16 Z" fill="#5A1E1E"/></marker></defs>
+<text x="60" y="57.89" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-weight="750" font-size="33" fill="#172439">P2-02 · FND 4자리 숫자 표시</text>
+<text x="60" y="103.27" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-weight="500" font-size="19" fill="#172439">UART 명령 기반 FND 표시 · 선행 01장 기능 유지 · 설계 개념도(코드·보드 미검증)</text>
+<g fill="none" stroke="#5A1E1E" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round">
+<polyline points="470,214 470,275" marker-end="url(#arrow)"/>
+<polyline points="470,375 470,425" marker-end="url(#arrow)"/>
+<polyline points="700,500 817.5,500" marker-end="url(#arrow)"/>
+<text x="758.75" y="487" fill="#5A1E1E" font-size="17" font-weight="700" text-anchor="middle" stroke="none" font-family="Noto Sans KR,Malgun Gothic,sans-serif">예</text>
+<polyline points="470,575 470,625" marker-end="url(#arrow)"/>
+<text x="515" y="600" fill="#5A1E1E" font-size="17" font-weight="700" text-anchor="middle" stroke="none" font-family="Noto Sans KR,Malgun Gothic,sans-serif">아니오</text>
+<polyline points="470,725 470,800" marker-end="url(#arrow)"/>
+<polyline points="1110,550 1110,700 775,700 775,850" marker-end="url(#arrow)"/>
+<polyline points="470,900 470,977.5" marker-end="url(#arrow)"/>
+<polyline points="212.5,1025 102.5,1025 102.5,325 162.5,325" marker-end="url(#arrow)"/>
+<text x="157.5" y="1012" fill="#5A1E1E" font-size="17" font-weight="700" text-anchor="middle" stroke="none" font-family="Noto Sans KR,Malgun Gothic,sans-serif">반복</text>
+</g>
+<g id="start">
+<rect x="225" y="136" width="490" height="78" fill="#fff" stroke="#1F3A5F" stroke-width="3.5"/>
+<text x="470" y="173.5" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="23" font-weight="700" fill="#172439">P2-02 실습 시작</text>
+<text x="470" y="194.7" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="18" font-weight="450" fill="#273e5e">기존 SoC 기능 보존</text>
+</g>
+<g id="input">
+<rect x="162.5" y="275" width="615" height="100" fill="#fff" stroke="#1F3A5F" stroke-width="3.5"/>
+<text x="470" y="323.5" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="23" font-weight="700" fill="#172439">UART 명령 수신</text>
+<text x="470" y="344.7" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="18" font-weight="450" fill="#273e5e">DISP / 기존 LED·STATUS</text>
+</g>
+<g id="decision">
+<polygon points="470,425 700,500 470,575 240,500" fill="#fff" stroke="#1F3A5F" stroke-width="3.5" stroke-linejoin="round"/>
+<text x="470" y="488.3" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="23" font-weight="700" fill="#172439">DISP 명령인가?</text>
+<text x="470" y="509.6" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="18" font-weight="450" fill="#273e5e">DISP 1234 · DISP 0050 ·</text>
+<text x="470" y="529.9" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="18" font-weight="450" fill="#273e5e">DISP OFF</text>
+</g>
+<g id="other">
+<rect x="170" y="625" width="600" height="100" fill="#fff" stroke="#1F3A5F" stroke-width="3.5"/>
+<text x="470" y="673.5" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="23" font-weight="700" fill="#172439">기존 명령 처리</text>
+<text x="470" y="694.7" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="18" font-weight="450" fill="#273e5e">LED ON / LED OFF / STATUS 유지</text>
+</g>
+<g id="action">
+<rect x="817.5" y="450" width="585" height="100" fill="#fff" stroke="#1F3A5F" stroke-width="3.5"/>
+<text x="1110" y="498.5" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="23" font-weight="700" fill="#172439">FND 표시 갱신</text>
+<text x="1110" y="519.7" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="18" font-weight="450" fill="#273e5e">4자리 값 및 선행 0 보존 · 각 자리 의미 유지</text>
+</g>
+<g id="status">
+<rect x="165" y="800" width="610" height="100" fill="#fff" stroke="#1F3A5F" stroke-width="3.5"/>
+<text x="470" y="848.5" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="23" font-weight="700" fill="#172439">표시 상태 확인</text>
+<text x="470" y="869.7" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="18" font-weight="450" fill="#273e5e">명령 처리 결과 보고</text>
+</g>
+<g id="repeat">
+<rect x="212.5" y="977.5" width="515" height="95" fill="#fff" stroke="#1F3A5F" stroke-width="3.5"/>
+<text x="470" y="1023.5" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="23" font-weight="700" fill="#172439">다음 이벤트·명령 대기</text>
+<text x="470" y="1044.7" text-anchor="middle" font-family="Noto Sans KR,Malgun Gothic,sans-serif" font-size="18" font-weight="450" fill="#273e5e">반복 처리</text>
+</g>
+</svg>
