@@ -272,7 +272,6 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
  <div id="quickMultiple" class="quick-scope" hidden><p class="inspector-tip">여러 박스를 선택했습니다. 아래 일괄 편집 항목에서 한 번에 서식을 변경하세요.</p></div>
  <div id="quickHeading" class="quick-scope" hidden><p class="inspector-tip">선택한 도면 제목이나 부제의 글자 크기·정렬을 아래에서 조절하세요.</p></div>
 </div>
-<details id="inspectorAdvanced" open><summary>세부 설정 · 좌표 · 텍스트 · 연결</summary><div class="advanced-body">
 <section id="batchPanel" class="batch-panel" hidden>
   <div class="batch-header"><strong id="batchCount">0개 박스 선택</strong><button type="button" id="batchClear">선택 해제</button></div>
   <p class="batch-hint">Shift+클릭으로 추가 선택하거나 상단 「영역 선택」으로 드래그하세요. 선택한 박스만 수정됩니다.</p>
@@ -292,6 +291,7 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
 <label class="batch-wide"><input type="checkbox" id="batchDoTextColor"> 위 글자색 일괄 적용</label>
 <button id="batchResetStyle" type="button">선택한 박스 스타일 기본값으로 복원</button>
 </section>
+<details id="inspectorAdvanced"><summary>세부 설정 · 좌표 · 텍스트 · 연결</summary><div class="advanced-body">
 <div id="generalSettings">
  <div class="field"><label for="titleInput">도면 제목</label><input id="titleInput"></div>
  <div class="field"><label for="subtitleInput">부제</label><input id="subtitleInput"></div>
@@ -300,7 +300,7 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
  <div class="twocol"><div class="field"><label for="gapY">세로 간격(px)</label><input type="number" id="gapY" min="20" max="130"></div><div class="field"><label for="padNode">내부 여백(px)</label><input type="number" id="padNode" min="12" max="60"></div></div>
  <button id="fitAllText" style="width:100%">모든 직사각형을 글자 크기에 맞춤</button>
  <button id="centerTitle" style="width:100%">제목 중앙 및 페이지 여백 정리</button>
- <div class="note">실제 도면 폭에 맞춰 제목을 중앙으로 놓습니다. <b>내부 여백 8px ≈ 2mm</b>(96dpi 기준).</div>
+ <div class="note">도면 제목은 왼쪽 정렬이 기본입니다. <b>최소 내부 여백 12px ≈ 3mm</b>(96dpi 기준).</div>
 </div>
 
 <div id="headingSettings" style="display:none">
@@ -1181,6 +1181,8 @@ $('applyBatch').onclick=()=>{
   if(batchGet('batchDoPadding').checked)n.pad=padding;
   if(batchGet('batchDoOutline').checked){n.strokeColor=batchGet('batchOutlineColor').value;n.strokeWidth=outlineWidth}
   if(batchGet('batchDoFill').checked)n.fill=batchGet('batchTransparent').checked?'none':batchGet('batchFill').value;
+  if(batchGet('batchTextAlign').value)n.textAlign=batchGet('batchTextAlign').value;
+  if(batchGet('batchDoTextColor').checked)n.textColor=batchGet('batchTextColor').value;
   if(batchGet('batchFit').checked&&n.type==='rect')fitRectToText(n);
  }
  updateUI();toast(candidates.length+'개 박스에 스타일을 적용했습니다. (실행 취소 가능)');
@@ -1189,7 +1191,7 @@ $('batchResetStyle').onclick=()=>{
  if(mode!=='structured'||selected.size<2)return;
  checkpoint();
  for(const n of scene.nodes.filter(n=>selected.has(n.id))){
-  delete n.fontMain;delete n.fontSub;delete n.pad;delete n.strokeColor;delete n.strokeWidth;
+  delete n.fontMain;delete n.fontSub;delete n.pad;delete n.strokeColor;delete n.strokeWidth;delete n.textAlign;delete n.textColor;delete n.subTextColor;
   n.fill='none';
   if(n.type==='rect')fitRectToText(n);
  }
@@ -1256,6 +1258,128 @@ $('copySvgSource').onclick=async()=>{
   toast('코드를 선택했습니다. Ctrl+C를 누르세요.');
  }
 };
+
+
+/* v2.6 context-sensitive properties. Every control persists in scene JSON. */
+const cssColor=(value,fallback)=>/^#[0-9a-fA-F]{6}$/.test(value||'')?value:fallback;
+const setQuickVisibility=(id,yes)=>{$(id).hidden=!yes};
+const safeValue=(id,value)=>{if(document.activeElement!==$(id))$(id).value=String(value)};
+function updateQuickInspector(){
+ const isDoc=mode==='structured',single=isDoc&&selected.size===1&&!edgeSelect&&!activeHeading;
+ const multi=isDoc&&selected.size>1&&!edgeSelect;
+ const edge=isDoc&&Boolean(edgeSelect);
+ const heading=isDoc&&Boolean(activeHeading);
+ setQuickVisibility('quickNode',single);
+ setQuickVisibility('quickEdge',edge);
+ setQuickVisibility('quickGlobal',isDoc&&!selected.size&&!edgeSelect&&!activeHeading);
+ setQuickVisibility('quickMultiple',multi);
+ setQuickVisibility('quickHeading',heading);
+ $('quickInspector').hidden=!isDoc;
+ if(single){
+  const n=getNode([...selected][0]);if(!n)return;
+  safeValue('quickFontMain',n.fontMain??scene.settings.fontMain);
+  safeValue('quickFontSub',n.fontSub??scene.settings.fontSub);
+  safeValue('quickTextAlign',n.textAlign||'center');
+  safeValue('quickTextColor',cssColor(n.textColor,'#172439'));
+  safeValue('quickStrokeColor',cssColor(n.strokeColor,'#1f3a5f'));
+  safeValue('quickStrokeWidth',n.strokeWidth??scene.settings.stroke);
+  safeValue('quickPad',n.pad??scene.settings.pad);
+  $('quickAutoFit').checked=n.autoFit!==false;
+ }
+ if(edge){
+  const e=scene.edges.find(e=>e.id===edgeSelect);if(!e)return;
+  safeValue('quickEdgeColor',cssColor(e.strokeColor,'#5a1e1e'));
+  safeValue('quickEdgeWidth',e.strokeWidth??Math.max(3.5,scene.settings.stroke));
+  safeValue('quickArrowSize',e.arrowSize??16);
+  safeValue('quickEdgeFont',e.labelFont??17);
+  safeValue('quickEdgeRoute',e.route||'auto');
+ }
+ if(isDoc&&!single&&!multi&&!edge&&!heading){
+  safeValue('quickGlobalFont',scene.settings.fontMain);
+  safeValue('quickGlobalSub',scene.settings.fontSub);
+  safeValue('quickGlobalPad',scene.settings.pad);
+  safeValue('quickGlobalStroke',scene.settings.stroke);
+ }
+}
+const beforeQuickUI=updateUI;
+updateUI=function(){beforeQuickUI();updateQuickInspector()};
+function editableNode(){return mode==='structured'&&selected.size===1&&!edgeSelect?getNode([...selected][0]):null}
+function editableEdge(){return mode==='structured'?scene.edges.find(e=>e.id===edgeSelect):null}
+function quickNumeric(id,min,max){
+ const v=Number($(id).value);
+ if(!Number.isFinite(v)||v<min||v>max){toast('입력 범위: '+min+' ~ '+max);updateQuickInspector();return null}
+ return v;
+}
+function hookNode(id,key,min,max){
+ $(id).addEventListener('change',()=>{
+  const n=editableNode();if(!n)return;
+  const v=quickNumeric(id,min,max);if(v===null)return;
+  if(n[key]===v)return;
+  checkpoint();n[key]=v;
+  if(n.type==='rect'&&n.autoFit!==false)fitRectToText(n);
+  updateUI();
+ });
+}
+for(const [id,key,lo,hi] of [
+ ['quickFontMain','fontMain',10,80],['quickFontSub','fontSub',9,60],
+ ['quickStrokeWidth','strokeWidth',1,15],['quickPad','pad',12,80]
+])hookNode(id,key,lo,hi);
+for(const [id,key] of [['quickTextAlign','textAlign'],['quickTextColor','textColor'],['quickStrokeColor','strokeColor']]){
+ $(id).addEventListener('change',()=>{
+  const n=editableNode();if(!n)return;
+  checkpoint();n[key]=$(id).value;updateUI();
+ });
+}
+$('quickAutoFit').addEventListener('change',()=>{
+ const n=editableNode();if(!n)return;checkpoint();
+ n.autoFit=$('quickAutoFit').checked;
+ if(n.autoFit&&n.type==='rect')fitRectToText(n);
+ updateUI();
+});
+$('quickFitNode').onclick=()=>{
+ const n=editableNode();if(!n||n.type!=='rect'){toast('직사각형을 선택해 주세요.');return;}
+ checkpoint();fitRectToText(n);updateUI();
+};
+$('quickResetNode').onclick=()=>{
+ const n=editableNode();if(!n)return;checkpoint();
+ for(const k of ['fontMain','fontSub','pad','strokeWidth','strokeColor','textAlign','textColor','subTextColor','autoFit'])delete n[k];
+ n.fill='none';if(n.type==='rect')fitRectToText(n);updateUI();
+};
+function hookEdgeNum(id,key,lo,hi){
+ $(id).addEventListener('change',()=>{
+  const e=editableEdge();if(!e)return;
+  const v=quickNumeric(id,lo,hi);if(v===null)return;
+  checkpoint();e[key]=v;updateUI();
+ });
+}
+for(const [id,key,lo,hi] of [
+ ['quickEdgeWidth','strokeWidth',1,15],['quickArrowSize','arrowSize',7,32],
+ ['quickEdgeFont','labelFont',10,35]
+])hookEdgeNum(id,key,lo,hi);
+for(const [id,key] of [['quickEdgeColor','strokeColor'],['quickEdgeRoute','route']]){
+ $(id).addEventListener('change',()=>{
+  const e=editableEdge();if(!e)return;
+  checkpoint();e[key]=$(id).value;updateUI();
+ });
+}
+$('quickResetEdge').onclick=()=>{
+ const e=editableEdge();if(!e)return;checkpoint();
+ for(const k of ['strokeWidth','arrowSize','labelFont','strokeColor'])delete e[k];
+ updateUI();
+};
+for(const [id,key,lo,hi] of [
+ ['quickGlobalFont','fontMain',12,50],['quickGlobalSub','fontSub',10,40],
+ ['quickGlobalPad','pad',12,80],['quickGlobalStroke','stroke',1,10]
+]){
+ $(id).addEventListener('change',()=>{
+  if(mode!=='structured'||selected.size||edgeSelect||activeHeading)return;
+  const v=quickNumeric(id,lo,hi);if(v===null)return;
+  checkpoint();scene.settings[key]=v;
+  if(key!=='stroke'&&$('autoFitText')?.checked)fitAllRects();
+  updateUI();
+ });
+}
+updateQuickInspector();
 
 </script>
 </body></html>
