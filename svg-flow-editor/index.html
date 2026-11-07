@@ -88,7 +88,7 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.5</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.6</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -155,7 +155,7 @@ function baseScene(){
    node('start','rect',center,160,350,72,'프로그램 시작 · main()','','#ece8fc'),
    node('declare','rect',center,282,520,85,'char line[LINE_CAPACITY]','int result; 변수 선언','#ffffff'),
    node('intro','rect',center,410,575,85,'uart_puts() · 시작 안내 출력','LED ON / LED OFF / STATUS','#e6f0fc'),
-   node('status','rect',center,535,575,85,'report_status("STATUS ")','AXI REG0 읽기 · UART 상태 출력','#ece8fc'),
+   node('status','rect',center,535,575,85,'report_status("STATUS")','AXI REG0 읽기 · UART 상태 출력','#ece8fc'),
    node('receive','rect',center,700,630,93,'read_command_line(line, LINE_CAPACITY)','Enter까지 블로킹 대기 · 결과 반환','#ece8fc'),
    node('d1','diamond',center,872,380,142,'result > 0 ?','정상 문자열 명령','#fff4d5'),
    node('cmd','rect',right,872,425,92,'handle_command(line)','LED ON / OFF / STATUS 분기','#ece8fc'),
@@ -196,20 +196,20 @@ function measureFlowText(text,fontSize,weight){
  if(!measureFlowText.canvas)measureFlowText.canvas=document.createElement('canvas');
  const context=measureFlowText.canvas.getContext('2d');
  if(!context)return Array.from(textValue).reduce((n,ch)=>n+(ch.codePointAt(0)>127?fontSize:fontSize*.65),0);
- context.font=weight+' '+fontSize+'px system-ui, "Noto Sans KR", "Malgun Gothic", sans-serif';
+ context.font=weight+' '+fontSize+'px "Noto Sans KR", "Noto Sans CJK KR", "Malgun Gothic", sans-serif';
  return context.measureText(textValue).width;
 }
 function fitRectToText(node){
- if(!node||node.type==='diamond')return false;
- const title=String(node.title||''),sub=String(node.sub||'');
- const fs=Number(scene.settings.fontMain)||20,ss=Number(scene.settings.fontSub)||16;
- const pad=Math.max(8,Number(scene.settings.pad)||8);
- const safeX=Math.max(18,pad+6); // same inset as left-aligned text; 12px minimum padding
- const contentW=Math.max(measureFlowText(title,fs,750),measureFlowText(sub,ss,400));
- const neededW=Math.ceil((contentW+safeX*2)/5)*5;
- const neededH=sub?Math.ceil((fs*1.4+ss*1.45+pad*2)/5)*5:
-                 Math.ceil((fs*1.6+pad*2)/5)*5;
- const w=Math.max(140,neededW),h=Math.max(58,neededH);
+ if(!node||node.type!=='rect')return false;
+ const fs=Number(scene.settings.fontMain)||23,ss=Number(scene.settings.fontSub)||18;
+ const pad=Math.max(12,Number(scene.settings.pad)||12);
+ // Use same fallback font as the SVG; reserve 10% for platform font differences.
+ const textWidth=Math.max(measureFlowText(node.title||'',fs,750),measureFlowText(node.sub||'',ss,400));
+ const inset=pad+8;
+ const neededW=Math.ceil(((textWidth*1.10)+inset*2+12)/5)*5;
+ const neededH=node.sub?Math.ceil((pad*2+fs*1.32+ss*1.45+10)/5)*5:
+                          Math.ceil((pad*2+fs*1.45)/5)*5;
+ const w=Math.max(150,neededW),h=Math.max(62,neededH);
  const changed=node.w!==w||node.h!==h;
  node.w=w;node.h=h;
  return changed;
@@ -219,11 +219,22 @@ function fitAllRects(){let count=0;for(const node of scene.nodes)if(fitRectToTex
 function drawText(group,n){
  const fs=Number(scene.settings.fontMain)||23,ss=Number(scene.settings.fontSub)||18;
  const pad=Math.max(12,Number(scene.settings.pad)||12);
- const left=n.x-n.w/2+pad+6;
  const hasSub=Boolean(n.sub);
- const titleY=hasSub?n.y-fs*.16:n.y+fs*.36;
- group.appendChild(sEl('text',{x:left,y:titleY,'text-anchor':'start','font-size':fs,'font-weight':750,fill:'#1b293f','pointer-events':'none'},n.title||''));
- if(hasSub)group.appendChild(sEl('text',{x:left,y:n.y+ss*1.2,'text-anchor':'start','font-size':ss,'font-weight':400,fill:'#34435a','pointer-events':'none'},n.sub));
+ if(n.type==='diamond'){
+  // A rhombus is narrow near its vertices. Center text in the safe middle area.
+  const usable=n.w*.56;
+  const measured=Math.max(measureFlowText(n.title||'',fs,750),measureFlowText(n.sub||'',ss,400));
+  const scale=measured>usable?usable/measured:1;
+  const df=Math.max(12,fs*scale),ds=Math.max(11,ss*scale);
+  const titleY=hasSub?n.y-ds*.18:n.y+df*.34;
+  group.appendChild(sEl('text',{x:n.x,y:titleY,'text-anchor':'middle','font-size':df,'font-weight':750,fill:'#1b293f','pointer-events':'none'},n.title||''));
+  if(hasSub)group.appendChild(sEl('text',{x:n.x,y:n.y+ds*1.12,'text-anchor':'middle','font-size':ds,'font-weight':400,fill:'#34435a','pointer-events':'none'},n.sub));
+  return;
+ }
+ const x=n.x-n.w/2+pad+8;
+ const titleY=hasSub?n.y-fs*.18:n.y+fs*.35;
+ group.appendChild(sEl('text',{x,y:titleY,'text-anchor':'start','font-size':fs,'font-weight':750,fill:'#1b293f','pointer-events':'none'},n.title||''));
+ if(hasSub)group.appendChild(sEl('text',{x,y:n.y+ss*1.22,'text-anchor':'start','font-size':ss,'font-weight':400,fill:'#34435a','pointer-events':'none'},n.sub));
 }
 function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.replaceChildren();s.setAttribute('width',scene.width);s.setAttribute('height',scene.height);s.setAttribute('viewBox',`0 0 ${scene.width} ${scene.height}`);
  const defs=sEl('defs');const marker=sEl('marker',{id:'arrowhead',markerWidth:10,markerHeight:10,refX:9,refY:5,orient:'auto',markerUnits:'userSpaceOnUse'});marker.appendChild(sEl('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#233247'}));defs.append(marker);s.append(defs);
