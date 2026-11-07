@@ -1255,7 +1255,7 @@ $('batchResetStyle').onclick=()=>{
  if(mode!=='structured'||selected.size<2)return;
  checkpoint();
  for(const n of scene.nodes.filter(n=>selected.has(n.id))){
-  delete n.fontMain;delete n.fontSub;delete n.pad;delete n.padY;delete n.strokeColor;delete n.strokeWidth;delete n.textAlign;delete n.textColor;delete n.subTextColor;
+  delete n.fontMain;delete n.fontSub;delete n.pad;delete n.padY;delete n.strokeColor;delete n.strokeWidth;delete n.textAlign;delete n.textColor;delete n.subTextColor;delete n.preset;delete n.autoFit;
   n.fill='none';
   if(n.type==='rect')fitRectToText(n);
  }
@@ -1510,7 +1510,7 @@ $('quickFitNode').onclick=()=>{
 };
 $('quickResetNode').onclick=()=>{
  const n=editableNode();if(!n)return;checkpoint();
- for(const k of ['fontMain','fontSub','pad','strokeWidth','strokeColor','textAlign','textColor','subTextColor','autoFit'])delete n[k];
+ for(const k of ['fontMain','fontSub','pad','padY','strokeWidth','strokeColor','textAlign','textColor','subTextColor','autoFit','preset'])delete n[k];
  n.fill='none';if(n.type==='rect')fitRectToText(n);updateUI();
 };
 function hookEdgeNum(id,key,lo,hi){
