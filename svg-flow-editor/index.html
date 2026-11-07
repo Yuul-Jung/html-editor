@@ -155,7 +155,7 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.2</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.3</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="marqueeBtn" type="button" aria-pressed="false">▣ 영역 선택</button><button id="selectAllBoxes" type="button">전체 박스</button><button id="clearBoxSelection" type="button">선택 해제</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -412,7 +412,7 @@ $('delete').onclick=deleteSelected;$('undo').onclick=undo;$('redo').onclick=redo
 function setZoom(v){zoom=Math.min(1.75,Math.max(.2,v));render()}
 function updateZoom(){$('zoomText').textContent=Math.round(zoom*100)+'%';$('zoomValue').textContent=Math.round(zoom*100)+'%';$('zoomRange').value=Math.round(zoom*100)}
 $('zoomIn').onclick=()=>setZoom(zoom+.1);$('zoomOut').onclick=()=>setZoom(zoom-.1);$('zoomRange').oninput=e=>setZoom(+e.target.value/100);
-function fitCanvas(){let s=$('viewport'),w=mode==='raw'?Number($('canvas').getAttribute('width')):scene.width;setZoom(Math.max(.2,Math.min(.8,(s.clientWidth-40)/w)));s.scrollTop=0;s.scrollLeft=0;}
+function fitCanvas(){let s=$('viewport'),w=mode==='raw'?Number($('canvas').getAttribute('width')):scene.width;setZoom(Math.max(.2,Math.min(1,(s.clientWidth-24)/w)));s.scrollTop=0;s.scrollLeft=0;}
 $('fit').onclick=fitCanvas;
 $('centerTitle').onclick=()=>{if(mode!=='structured')return;checkpoint();let all=scene.nodes;if(!all.length)return;let minx=Math.min(...all.map(n=>n.x-n.w/2)),maxx=Math.max(...all.map(n=>n.x+n.w/2));let shift=scene.width/2-(minx+maxx)/2;for(const n of all)n.x=Math.round(n.x+shift);scene.height=Math.max(600,Math.max(...all.map(n=>n.y+n.h/2))+70);updateUI();toast('도면의 중앙축과 여백을 정리했습니다.')};
 $('autoLayout').onclick=()=>{if(mode!=='structured')return;checkpoint();let main=scene.nodes.filter(n=>n.x<scene.width*.58).sort((a,b)=>a.y-b.y),side=scene.nodes.filter(n=>n.x>=scene.width*.58).sort((a,b)=>a.y-b.y);let maxW=Math.max(...main.map(n=>n.w),500);let mx=scene.width*.43,rx=scene.width*.77;let y=158;for(const n of main){n.x=mx;n.y=y;y+=n.h+scene.settings.gap;}for(const n of side){const src=scene.edges.find(e=>e.to===n.id&&e.fp==='right');const an=src&&getNode(src.from);n.x=rx;if(an)n.y=an.y;}scene.height=Math.max(scene.height,y+80);updateUI();toast('수직 배치를 적용했습니다. 연결선도 자동 재계산됩니다.')};
@@ -958,6 +958,7 @@ function finishPanelDrag(e){
  panelDrag=null;
  document.body.classList.remove('resizing-panel');
  setPanelWidth(panelWidth,true);
+ if(window.innerWidth>870){const vp=$('viewport'),savedTop=vp.scrollTop;requestAnimationFrame(()=>{fitCanvas();vp.scrollTop=savedTop;});}
 }
 splitter.addEventListener('pointerup',finishPanelDrag);
 splitter.addEventListener('pointercancel',finishPanelDrag);
@@ -970,7 +971,7 @@ splitter.addEventListener('keydown',e=>{
  if(e.key==='Home'){setPanelWidth(320,true);e.preventDefault();}
  if(e.key==='End'){setPanelWidth(980,true);e.preventDefault();}
 });
-window.addEventListener('resize',()=>setPanelWidth(panelWidth));
+window.addEventListener('resize',()=>{setPanelWidth(panelWidth);if(window.innerWidth>870){const vp=$('viewport'),y=vp.scrollTop;requestAnimationFrame(()=>{fitCanvas();vp.scrollTop=y;});}});
 
 
 /* v2.2 multi-selection, selection rectangle, and batch style editing */
@@ -999,6 +1000,7 @@ function updateBatchPanel(){
  panel.hidden=mode!=='structured'||selected.size<2;
  $('batchCount').textContent=selected.size+'개 박스 선택';
 }
+document.addEventListener('keydown',e=>{const active=document.activeElement;if(['INPUT','TEXTAREA','SELECT'].includes(active?.tagName)||active?.isContentEditable)return;if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='a'&&mode==='structured'){e.preventDefault();selectBoxes();}else if(e.key==='Escape'&&(selected.size||marqueeMode)){selected.clear();edgeSelect=null;marqueeMode=false;$('marqueeBtn').classList.remove('active');$('marqueeBtn').setAttribute('aria-pressed','false');updateUI();}});
 const originalBatchUI=updateUI;
 updateUI=function(){originalBatchUI();updateBatchPanel()};
 const batchGet=id=>$(id);
