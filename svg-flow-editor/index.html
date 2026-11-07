@@ -89,10 +89,24 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 /* v1.8: wider properties inspector, independent scroll, accessible controls */
 @media(min-width:871px){.layout{grid-template-columns:minmax(0,1fr) 440px}}
 @media(min-width:871px){aside{padding:18px 22px 40px}.twocol{gap:14px}.knob{grid-template-columns:42px minmax(80px,1fr) 42px 76px;gap:8px}.knob input[type=number]{width:76px}}
+
+/* v1.9: no wasted strip between drawing and inspector.
+   margin-left:auto keeps the canvas right-aligned without hiding left overflow. */
+@media (min-width:871px){
+  #viewport{justify-content:flex-start;padding:14px 0 14px 14px;scrollbar-gutter:stable}
+  #work{margin-left:auto;margin-right:0}
+  .stage{min-width:0}
+  aside{font-size:15.333px}
+  aside h2{font-size:15.333px}
+  aside .field label,aside .section-title{font-size:13.333px}
+  aside .note,aside .hint,aside #vizioHelp,aside #vizioHelp p{font-size:13.333px}
+  aside input,aside select,aside textarea,aside button{font-size:15.333px}
+  aside .knob button{font-size:21.333px}
+}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.8</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.9</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
