@@ -247,6 +247,12 @@ aside{font-family:system-ui,-apple-system,"Noto Sans KR","Malgun Gothic",sans-se
    <label>테두리색<input id="quickStrokeColor" type="color" value="#1f3a5f"></label>
    <label>테두리 두께(px)<input id="quickStrokeWidth" type="number" min="1" max="15" step="0.5"></label>
    <label>내부 여백(px)<input id="quickPad" type="number" min="12" max="80" step="1"></label>
+   <label>중심 X(px)<input id="quickX" type="number" step="5"></label>
+   <label>중심 Y(px)<input id="quickY" type="number" step="5"></label>
+   <label>가로 크기(px)<input id="quickW" type="number" min="120" max="1800" step="5"></label>
+   <label>세로 크기(px)<input id="quickH" type="number" min="50" max="800" step="5"></label>
+   <label class="check-property"><input id="quickTransparent" type="checkbox" checked> 투명 배경</label>
+   <label>배경색<input id="quickFill" type="color" value="#ffffff"></label>
    <label class="check-property"><input id="quickAutoFit" type="checkbox" checked> 글자에 크기 맞춤</label>
   </div>
   <div class="quick-action"><button id="quickFitNode" type="button">선택 박스 자동 맞춤</button><button id="quickResetNode" type="button">서식 초기화</button></div>
@@ -440,7 +446,7 @@ function refineRenderedText(svg){
   if(!g)continue;
   const texts=Array.from(g.querySelectorAll('text'));
   if(!texts.length)continue;
-  if(n.type==='rect'&&$('autoFitText')?.checked){
+  if(n.type==='rect'&&$('autoFitText')?.checked&&n.autoFit!==false){
    const pad=Math.max(12,Number(n.pad||scene.settings.pad)||12);
    let left=Infinity,right=-Infinity,top=Infinity,bottom=-Infinity;
    for(const t of texts){
@@ -1273,6 +1279,7 @@ function updateQuickInspector(){
  setQuickVisibility('quickEdge',edge);
  setQuickVisibility('quickGlobal',isDoc&&!selected.size&&!edgeSelect&&!activeHeading);
  setQuickVisibility('quickMultiple',multi);
+ if(multi){$('inspectorAdvanced').open=false;}
  setQuickVisibility('quickHeading',heading);
  $('quickInspector').hidden=!isDoc;
  if(single){
@@ -1284,6 +1291,8 @@ function updateQuickInspector(){
   safeValue('quickStrokeColor',cssColor(n.strokeColor,'#1f3a5f'));
   safeValue('quickStrokeWidth',n.strokeWidth??scene.settings.stroke);
   safeValue('quickPad',n.pad??scene.settings.pad);
+  safeValue('quickX',n.x);safeValue('quickY',n.y);safeValue('quickW',n.w);safeValue('quickH',n.h);
+  $('quickTransparent').checked=n.fill==='none';safeValue('quickFill',cssColor(n.fill,'#ffffff')); $('quickFill').disabled=n.fill==='none';
   $('quickAutoFit').checked=n.autoFit!==false;
  }
  if(edge){
@@ -1324,6 +1333,26 @@ for(const [id,key,lo,hi] of [
  ['quickFontMain','fontMain',10,80],['quickFontSub','fontSub',9,60],
  ['quickStrokeWidth','strokeWidth',1,15],['quickPad','pad',12,80]
 ])hookNode(id,key,lo,hi);
+for(const [id,key,lo,hi] of [
+ ['quickX','x',-10000,10000],['quickY','y',-10000,10000],
+ ['quickW','w',120,1800],['quickH','h',50,800]
+]){
+ $(id).addEventListener('change',()=>{
+  const n=editableNode();if(!n)return;
+  const v=quickNumeric(id,lo,hi);if(v===null)return;
+  checkpoint();n[key]=v;
+  if((key==='w'||key==='h')&&n.type==='rect')n.autoFit=false;
+  updateUI();
+ });
+}
+$('quickTransparent').addEventListener('change',()=>{
+ const n=editableNode();if(!n)return;
+ checkpoint();n.fill=$('quickTransparent').checked?'none':$('quickFill').value;updateUI();
+});
+$('quickFill').addEventListener('change',()=>{
+ const n=editableNode();if(!n||n.fill==='none')return;
+ checkpoint();n.fill=$('quickFill').value;updateUI();
+});
 for(const [id,key] of [['quickTextAlign','textAlign'],['quickTextColor','textColor'],['quickStrokeColor','strokeColor']]){
  $(id).addEventListener('change',()=>{
   const n=editableNode();if(!n)return;
