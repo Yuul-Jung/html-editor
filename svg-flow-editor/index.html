@@ -60,10 +60,24 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
  #mobileTools button{flex:1}
 }
 
+
+/* v1.2 — Visio-style editing handles */
+.vizio-handle{fill:#fff;stroke:#5042b4;stroke-width:3;cursor:nwse-resize;pointer-events:all;touch-action:none}
+.vizio-handle[data-dir="n"],.vizio-handle[data-dir="s"]{cursor:ns-resize}
+.vizio-handle[data-dir="w"],.vizio-handle[data-dir="e"]{cursor:ew-resize}
+.vizio-handle[data-dir="ne"],.vizio-handle[data-dir="sw"]{cursor:nesw-resize}
+.vizio-port{fill:#fff;stroke:#147b8d;stroke-width:3;cursor:crosshair;pointer-events:all;touch-action:none}
+.vizio-bend{fill:#fff5d5;stroke:#b57718;stroke-width:3;cursor:move;pointer-events:all;touch-action:none}
+.vizio-end{fill:#e8dfff;stroke:#6547e0;stroke-width:3;cursor:grab;pointer-events:all;touch-action:none}
+.vizio-selected-outline{fill:none;stroke:#6547e0;stroke-dasharray:7 6;stroke-width:1.7;pointer-events:none}
+#vizioMode{display:flex;align-items:center;gap:7px;white-space:nowrap}
+#vizioMode button.is-on{background:#e6dfff;border-color:#5442b4;font-weight:750}
+#vizioHelp{font-size:12px;color:#40536f;margin:5px 0 9px;padding:8px 10px;background:#eaf2fc;border-left:3px solid #5143ad}
+@media(max-width:870px){.vizio-handle,.vizio-port,.vizio-end,.vizio-bend{stroke-width:4}#vizioMode button{min-height:44px}}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.1</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.2</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -143,7 +157,7 @@ function redo(){if(!future.length||mode!=='structured')return;history.push(clone
 function sEl(tag,attrs={},textContent){const el=document.createElementNS(NS,tag);Object.entries(attrs).forEach(([k,v])=>{if(v!==undefined&&v!==null)el.setAttribute(k,String(v))});if(tag==='text'&&!('font-family' in attrs))el.setAttribute('font-family',"Noto Sans KR, Noto Sans CJK KR, Malgun Gothic, sans-serif");if(textContent!==undefined)el.textContent=textContent;return el}
 function getNode(id){return scene.nodes.find(n=>n.id===id)}
 function port(n,key){return {top:[n.x,n.y-n.h/2],bottom:[n.x,n.y+n.h/2],left:[n.x-n.w/2,n.y],right:[n.x+n.w/2,n.y]}[key]||[n.x,n.y]}
-function edgePath(e){const a=getNode(e.from),b=getNode(e.to);if(!a||!b)return null;const [sx,sy]=port(a,e.fp),[tx,ty]=port(b,e.tp);const all=scene.nodes;let pts=[[sx,sy]];
+function edgePath(e){const a=getNode(e.from),b=getNode(e.to);if(!a||!b)return null;const [sx,sy]=port(a,e.fp),[tx,ty]=port(b,e.tp);const all=scene.nodes;let pts=[[sx,sy]];if(e.via&&Number.isFinite(+e.via.x)&&Number.isFinite(+e.via.y)){const vx=+e.via.x,vy=+e.via.y;return [[sx,sy],[sx,vy],[vx,vy],[vx,ty],[tx,ty]].filter((p,i,a)=>i===0||p[0]!==a[i-1][0]||p[1]!==a[i-1][1]);}
  if(e.route==='loopLeft'){const minx=Math.min(...all.map(n=>n.x-n.w/2));const x=Math.max(25,minx-60);pts.push([x,sy],[x,ty],[tx,ty]);}
  else if(e.route==='loopRight'){const maxx=Math.max(...all.map(n=>n.x+n.w/2));const x=Math.min(scene.width-35,maxx+35);pts.push([x,sy],[x,ty],[tx,ty]);}
  else if(e.route==='direct'||(sx===tx||sy===ty)){pts.push([tx,ty]);}
@@ -160,10 +174,11 @@ function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.repl
  const defs=sEl('defs');const marker=sEl('marker',{id:'arrowhead',markerWidth:10,markerHeight:10,refX:9,refY:5,orient:'auto',markerUnits:'userSpaceOnUse'});marker.appendChild(sEl('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#233247'}));defs.append(marker);s.append(defs);
  s.append(sEl('rect',{x:0,y:0,width:scene.width,height:scene.height,fill:'#fff'}));
  s.append(sEl('text',{x:scene.width/2,y:48,'font-size':33,'font-weight':780,fill:'#172439','text-anchor':'middle'},scene.title));s.append(sEl('text',{x:scene.width/2,y:86,'font-size':20,fill:'#617083','text-anchor':'middle'},scene.subtitle));
- const eg=sEl('g',{id:'edges'});scene.edges.forEach(e=>{let pts=edgePath(e);if(!pts)return;const g=sEl('g',{'data-edge':e.id,class:'edge'+(edgeSelect===e.id?' selected':'')});g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'#233247','stroke-width':scene.settings.stroke,'stroke-linejoin':'round','stroke-linecap':'round','marker-end':'url(#arrowhead)'}));if(e.label){const [sx,sy]=pts[0], [nx,ny]=pts[1];const lx=sx===nx?sx+45:(sx+nx)/2,ly=sy===ny?sy-13:(sy+ny)/2;
+ const eg=sEl('g',{id:'edges'});scene.edges.forEach(e=>{let pts=edgePath(e);if(!pts)return;const g=sEl('g',{'data-edge':e.id,class:'edge'+(edgeSelect===e.id?' selected':'')});g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'#233247','stroke-width':scene.settings.stroke,'stroke-linejoin':'round','stroke-linecap':'round','marker-end':'url(#arrowhead)'}));g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'transparent','stroke-width':Math.max(20,scene.settings.stroke+16),'pointer-events':'stroke',class:'edge-hit'}));if(e.label){const [sx,sy]=pts[0], [nx,ny]=pts[1];const lx=sx===nx?sx+45:(sx+nx)/2,ly=sy===ny?sy-13:(sy+ny)/2;
  g.append(sEl('text',{x:lx,y:ly,'text-anchor':'middle','font-size':17,'font-weight':750,fill:'#25334a',class:'edge-label'},e.label));}
  eg.append(g)});s.append(eg);
  const ng=sEl('g',{id:'nodes'});scene.nodes.forEach(n=>{const g=sEl('g',{'data-node':n.id,class:'node'+(selected.has(n.id)?' selected':'')});let shape;if(n.type==='diamond'){const pts=[[n.x,n.y-n.h/2],[n.x+n.w/2,n.y],[n.x,n.y+n.h/2],[n.x-n.w/2,n.y]];shape=sEl('polygon',{points:pts.map(p=>p.join(',')).join(' '),fill:n.fill,stroke:'#62491d','stroke-width':scene.settings.stroke,'stroke-linejoin':'round',class:'node-shape'});}else{shape=sEl('rect',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,fill:n.fill,stroke:'#1b293d','stroke-width':scene.settings.stroke,class:'node-shape'});}g.append(shape);drawText(g,n);ng.append(g)});s.append(ng);
+ drawEditHandles(s);
  $('work').style.width=(scene.width*zoom)+'px';$('work').style.height=(scene.height*zoom)+'px';s.style.width=(scene.width*zoom)+'px';s.style.height=(scene.height*zoom)+'px'; // SVG width CSS scaled by zoom; pointer coordinate mapping uses screen CTM
  updateZoom();
 }
@@ -186,7 +201,7 @@ function highlightStatus(){let b=$('statusLine');b.textContent=connecting?'연�
 $('canvas').addEventListener('pointerdown',evt=>{if(evt.button!==0)return;if(mode==='raw'){const target=evt.target.closest('g,rect,polygon,path,text');if(target&&target!==$('canvas')){rawSelected=target;showProps();drag={raw:true,target,origin:posFromPointer(evt),transform:target.getAttribute('transform')||'',moved:false};$('canvas').setPointerCapture(evt.pointerId);}return}
  const grp=evt.target.closest('[data-node]');const ed=evt.target.closest('[data-edge]');
  if(connecting){if(!grp)return;const id=grp.dataset.node;if(!connectSource){connectSource=id;toast('끝 도형을 선택하세요.')}else{if(id===connectSource){toast('다른 노드를 선택하세요');return;}checkpoint();let a=getNode(connectSource),b=getNode(id);let fp=b.y>a.y?'bottom':b.x>a.x?'right':'left';let tp=b.y>a.y?'top':b.x>a.x?'left':'right';scene.edges.push({id:'e'+Date.now().toString(36),from:connectSource,to:id,fp,tp,label:'',route:'auto'});connecting=false;connectSource=null;$('addEdge').classList.remove('primary');updateUI();toast('연결선을 추가했습니다.');}return;}
- if(grp){const id=grp.dataset.node;if(evt.shiftKey){if(selected.has(id))selected.delete(id);else selected.add(id)}else if(!selected.has(id)){selected.clear();selected.add(id)}edgeSelect=null;drag={point:posFromPointer(evt),positions:[...selected].map(id=>({id,x:getNode(id).x,y:getNode(id).y})),moved:false,history:false};$('canvas').setPointerCapture(evt.pointerId);updateUI();highlightStatus();evt.preventDefault();}
+ if(grp){const id=grp.dataset.node;if(evt.shiftKey||visioMultiSelect){if(selected.has(id))selected.delete(id);else selected.add(id)}else if(!selected.has(id)){selected.clear();selected.add(id)}edgeSelect=null;drag={point:posFromPointer(evt),positions:[...selected].map(id=>({id,x:getNode(id).x,y:getNode(id).y})),moved:false,history:false};$('canvas').setPointerCapture(evt.pointerId);updateUI();highlightStatus();evt.preventDefault();}
  else if(ed){selected.clear();edgeSelect=ed.dataset.edge;updateUI();highlightStatus();evt.preventDefault();}
  else{selected.clear();edgeSelect=null;updateUI();highlightStatus();}});
 $('canvas').addEventListener('pointermove',evt=>{if(!drag)return;const p=posFromPointer(evt);if(drag.raw){const dx=p.x-drag.origin.x,dy=p.y-drag.origin.y;if(Math.abs(dx)+Math.abs(dy)>2){drag.target.setAttribute('transform',`translate(${dx} ${dy}) ${drag.transform}`);drag.moved=true;}return}
@@ -320,6 +335,138 @@ $('viewport').addEventListener('pointercancel',endPan,{capture:true});
 const oldFit=fitCanvas;
 fitCanvas=function(){oldFit();syncKnobs()};
 syncKnobs();
+
+
+/* v1.2 direct manipulation; structured document only. */
+let visioMultiSelect=false,visioDrag=null;
+const zoomCanvas=$('canvas');
+const toolbar=$('addEdge').parentElement;
+const visioBox=document.createElement('span');
+visioBox.id='vizioMode';
+visioBox.innerHTML='<button type="button" id="visioMulti" aria-pressed="false" title="모바일에서도 여러 도형 선택">다중 선택</button><button type="button" id="visioHelpBtn" title="편집 도움말">조작 도움말</button>';
+toolbar.appendChild(visioBox);
+const helpPanel=document.createElement('div');
+helpPanel.id='vizioHelp';
+helpPanel.textContent='도형 터치 → 모서리 ■를 끌어 크기 변경 · 청록색 ○에서 다른 도형까지 끌어 연결 · 화살표 선택 → 노란 조절점을 끌어 굴곡 변경 · 보라색 끝점으로 연결 위치 변경 · 빈 공간 드래그로 화면 이동';
+document.querySelector('aside').insertBefore(helpPanel,document.querySelector('aside').firstChild);
+$('visioHelpBtn').onclick=()=>{helpPanel.hidden=!helpPanel.hidden;helpPanel.scrollIntoView({behavior:'smooth',block:'nearest'})};
+$('visioMulti').onclick=()=>{visioMultiSelect=!visioMultiSelect;$('visioMulti').classList.toggle('is-on',visioMultiSelect);$('visioMulti').setAttribute('aria-pressed',String(visioMultiSelect));toast(visioMultiSelect?'여러 도형을 차례로 선택하세요.':'단일 선택으로 전환했습니다.')};
+function nearestPort(n,x,y){
+ const keys=['top','right','bottom','left'];let best='top',d=Infinity;
+ for(const k of keys){const p=port(n,k),sq=(p[0]-x)**2+(p[1]-y)**2;if(sq<d){d=sq;best=k}}return best;
+}
+function makeVisioCircle(attrs,color,size=9){
+ return sEl('circle',{r:size,fill:color,stroke:'#5143ad','stroke-width':3,...attrs});
+}
+function drawEditHandles(svg){
+ if(mode!=='structured')return;
+ const g=sEl('g',{id:'vizio-overlays','aria-label':'드래그 편집 핸들'});
+ if(selected.size===1&&!edgeSelect){
+  const n=getNode([...selected][0]);if(n){
+   const dirs={nw:[-1,-1],n:[0,-1],ne:[1,-1],e:[1,0],se:[1,1],s:[0,1],sw:[-1,1],w:[-1,0]};
+   const halfW=n.w/2,halfH=n.h/2;
+   g.append(sEl('rect',{x:n.x-halfW-7,y:n.y-halfH-7,width:n.w+14,height:n.h+14,class:'vizio-selected-outline'}));
+   for(const [dir,[dx,dy]] of Object.entries(dirs)){
+    g.append(sEl('rect',{x:n.x+dx*halfW-10,y:n.y+dy*halfH-10,width:20,height:20,rx:2,class:'vizio-handle','data-resize':n.id,'data-dir':dir}));
+   }
+   for(const key of ['top','right','bottom','left']){
+    const [px,py]=port(n,key);
+    const dist=27;const offsets={top:[0,-dist],right:[dist,0],bottom:[0,dist],left:[-dist,0]};
+    const o=offsets[key];
+    g.append(sEl('circle',{cx:px+o[0],cy:py+o[1],r:11,class:'vizio-port','data-connect-port':key,'data-connect-node':n.id,'aria-label':'연결선 시작 '+key}));
+    g.append(sEl('path',{d:polyPath([[px,py],[px+o[0]*.56,py+o[1]*.56]]),stroke:'#147b8d','stroke-width':2,fill:'none','pointer-events':'none'}));
+   }
+  }
+ }
+ if(edgeSelect){
+  const edge=scene.edges.find(e=>e.id===edgeSelect);
+  if(edge){const pts=edgePath(edge),from=getNode(edge.from),to=getNode(edge.to);
+   if(pts&&from&&to){
+    const start=port(from,edge.fp),end=port(to,edge.tp);
+    g.append(makeVisioCircle({cx:start[0],cy:start[1],class:'vizio-end','data-end-role':'from','data-edge-id':edge.id},'#e8dfff',12));
+    g.append(makeVisioCircle({cx:end[0],cy:end[1],class:'vizio-end','data-end-role':'to','data-edge-id':edge.id},'#e8dfff',12));
+    const vb=edge.via||{x:(start[0]+end[0])/2,y:(start[1]+end[1])/2};
+    g.append(makeVisioCircle({cx:vb.x,cy:vb.y,class:'vizio-bend','data-bend':edge.id},'#fff5d5',13));
+   }
+  }
+ }
+ svg.append(g);
+}
+function visioPointerStart(evt){
+ const hit=evt.target.closest?.('[data-resize],[data-bend],[data-end-role],[data-connect-port]');
+ if(!hit||evt.button!==0||mode!=='structured')return;
+ evt.stopImmediatePropagation();evt.preventDefault();
+ const point=posFromPointer(evt);
+ if(hit.dataset.resize){
+  const n=getNode(hit.dataset.resize);
+  checkpoint();visioDrag={type:'resize',id:n.id,dir:hit.dataset.dir,original:{x:n.x,y:n.y,w:n.w,h:n.h},point,pid:evt.pointerId};
+ }else if(hit.dataset.bend){
+  const edge=scene.edges.find(e=>e.id===hit.dataset.bend);
+  checkpoint();visioDrag={type:'bend',id:edge.id,pid:evt.pointerId};
+ }else if(hit.dataset.endRole){
+  checkpoint();visioDrag={type:'end',id:hit.dataset.edgeId,role:hit.dataset.endRole,pid:evt.pointerId};
+ }else if(hit.dataset.connectPort){
+  visioDrag={type:'new',id:hit.dataset.connectNode,fromPort:hit.dataset.connectPort,pid:evt.pointerId};
+ }
+ zoomCanvas.setPointerCapture(evt.pointerId);
+}
+function visioPointerMove(evt){
+ if(!visioDrag)return;
+ evt.stopImmediatePropagation();evt.preventDefault();
+ const p=posFromPointer(evt),d=visioDrag;
+ if(d.type==='resize'){
+  const n=getNode(d.id),o=d.original,dx=p.x-d.point.x,dy=p.y-d.point.y;
+  if(!n)return;
+  const sx=d.dir.includes('e')?1:d.dir.includes('w')?-1:0;
+  const sy=d.dir.includes('s')?1:d.dir.includes('n')?-1:0;
+  const nextW=Math.max(120,o.w+sx*dx);
+  const nextH=Math.max(66,o.h+sy*dy);
+  n.w=Math.round(nextW/5)*5;n.h=Math.round(nextH/5)*5;
+  n.x=Math.round(o.x+sx*(n.w-o.w)/2);
+  n.y=Math.round(o.y+sy*(n.h-o.h)/2);
+  render();
+ }else if(d.type==='bend'){
+  const e=scene.edges.find(e=>e.id===d.id);if(e){e.via={x:Math.round(p.x/5)*5,y:Math.round(p.y/5)*5};render();}
+ }else if(d.type==='end'||d.type==='new'){
+  const svg=$('canvas'),old=svg.querySelector('#vizio-preview');
+  if(old)old.remove();
+  const line=sEl('circle',{id:'vizio-preview',cx:p.x,cy:p.y,r:17,fill:'none',stroke:'#6547e0','stroke-width':3,'stroke-dasharray':'5 5','pointer-events':'none'});
+  svg.append(line);
+ }
+}
+function hitNodeFromPointer(evt){
+ const target=document.elementFromPoint(evt.clientX,evt.clientY);
+ const grp=target?.closest?.('[data-node]');
+ return grp?getNode(grp.dataset.node):null;
+}
+function visioPointerEnd(evt){
+ if(!visioDrag)return;
+ evt.stopImmediatePropagation();evt.preventDefault();
+ const d=visioDrag;visioDrag=null;
+ const p=posFromPointer(evt);
+ if(d.type==='new'){
+  const target=hitNodeFromPointer(evt);
+  if(target&&target.id!==d.id){
+   checkpoint();
+   scene.edges.push({id:uid('e'),from:d.id,to:target.id,fp:d.fromPort,tp:nearestPort(target,p.x,p.y),route:'auto',label:''});
+   toast('연결선을 추가했습니다.');
+  }else toast('연결할 다른 도형 위에서 손을 놓으세요.');
+ }else if(d.type==='end'){
+  const edge=scene.edges.find(e=>e.id===d.id),target=hitNodeFromPointer(evt);
+  if(edge){
+   const current=getNode(edge[d.role]);
+   if(target){edge[d.role]=target.id;edge[d.role==='from'?'fp':'tp']=nearestPort(target,p.x,p.y);edge.via=null;}
+   else if(current)edge[d.role==='from'?'fp':'tp']=nearestPort(current,p.x,p.y);
+   toast('화살표 연결점을 수정했습니다.');
+  }
+ }
+ try{zoomCanvas.releasePointerCapture(evt.pointerId)}catch{}
+ updateUI();
+}
+zoomCanvas.addEventListener('pointerdown',visioPointerStart,{capture:true});
+zoomCanvas.addEventListener('pointermove',visioPointerMove,{capture:true});
+zoomCanvas.addEventListener('pointerup',visioPointerEnd,{capture:true});
+zoomCanvas.addEventListener('pointercancel',visioPointerEnd,{capture:true});
 
 </script>
 </body></html>
