@@ -77,7 +77,7 @@ aside h2{font-size:14px;padding:0 0 10px;margin:3px 0 11px;border-bottom:1px sol
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.2</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v1.3</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
@@ -174,7 +174,7 @@ function render(){if(mode==='raw'){renderRaw();return}const s=$('canvas');s.repl
  const defs=sEl('defs');const marker=sEl('marker',{id:'arrowhead',markerWidth:10,markerHeight:10,refX:9,refY:5,orient:'auto',markerUnits:'userSpaceOnUse'});marker.appendChild(sEl('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#233247'}));defs.append(marker);s.append(defs);
  s.append(sEl('rect',{x:0,y:0,width:scene.width,height:scene.height,fill:'#fff'}));
  s.append(sEl('text',{x:scene.width/2,y:48,'font-size':33,'font-weight':780,fill:'#172439','text-anchor':'middle'},scene.title));s.append(sEl('text',{x:scene.width/2,y:86,'font-size':20,fill:'#617083','text-anchor':'middle'},scene.subtitle));
- const eg=sEl('g',{id:'edges'});scene.edges.forEach(e=>{let pts=edgePath(e);if(!pts)return;const g=sEl('g',{'data-edge':e.id,class:'edge'+(edgeSelect===e.id?' selected':'')});g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'#233247','stroke-width':scene.settings.stroke,'stroke-linejoin':'round','stroke-linecap':'round','marker-end':'url(#arrowhead)'}));g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'transparent','stroke-width':Math.max(20,scene.settings.stroke+16),'pointer-events':'stroke',class:'edge-hit'}));if(e.label){const [sx,sy]=pts[0], [nx,ny]=pts[1];const lx=sx===nx?sx+45:(sx+nx)/2,ly=sy===ny?sy-13:(sy+ny)/2;
+ const eg=sEl('g',{id:'edges'});scene.edges.forEach(e=>{let pts=edgePath(e);if(!pts)return;const g=sEl('g',{'data-edge':e.id,class:'edge'+(edgeSelect===e.id?' selected':'')});g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'#233247','stroke-width':scene.settings.stroke,'stroke-linejoin':'round','stroke-linecap':'round','marker-end':'url(#arrowhead)'}));g.append(sEl('path',{d:polyPath(pts),fill:'none',stroke:'transparent','stroke-width':Math.max(22,32/Math.max(zoom,.2)),'pointer-events':'stroke',class:'edge-hit'}));if(e.label){const [sx,sy]=pts[0], [nx,ny]=pts[1];const lx=sx===nx?sx+45:(sx+nx)/2,ly=sy===ny?sy-13:(sy+ny)/2;
  g.append(sEl('text',{x:lx,y:ly,'text-anchor':'middle','font-size':17,'font-weight':750,fill:'#25334a',class:'edge-label'},e.label));}
  eg.append(g)});s.append(eg);
  const ng=sEl('g',{id:'nodes'});scene.nodes.forEach(n=>{const g=sEl('g',{'data-node':n.id,class:'node'+(selected.has(n.id)?' selected':'')});let shape;if(n.type==='diamond'){const pts=[[n.x,n.y-n.h/2],[n.x+n.w/2,n.y],[n.x,n.y+n.h/2],[n.x-n.w/2,n.y]];shape=sEl('polygon',{points:pts.map(p=>p.join(',')).join(' '),fill:n.fill,stroke:'#62491d','stroke-width':scene.settings.stroke,'stroke-linejoin':'round',class:'node-shape'});}else{shape=sEl('rect',{x:n.x-n.w/2,y:n.y-n.h/2,width:n.w,height:n.h,fill:n.fill,stroke:'#1b293d','stroke-width':scene.settings.stroke,class:'node-shape'});}g.append(shape);drawText(g,n);ng.append(g)});s.append(ng);
@@ -319,7 +319,7 @@ const originalUpdateUI=updateUI;
 updateUI=function(){originalUpdateUI();syncKnobs()};
 let pan=null;
 $('viewport').addEventListener('pointerdown',e=>{
-  if(e.target.closest?.('[data-node],[data-edge]'))return;
+  if(e.target.closest?.('[data-node],[data-edge],[data-resize],[data-bend],[data-end-role],[data-connect-port]'))return;
   if(e.button!==0)return;
   pan={x:e.clientX,y:e.clientY,left:$('viewport').scrollLeft,top:$('viewport').scrollTop};
   $('viewport').setPointerCapture(e.pointerId);
@@ -367,13 +367,13 @@ function drawEditHandles(svg){
    const halfW=n.w/2,halfH=n.h/2;
    g.append(sEl('rect',{x:n.x-halfW-7,y:n.y-halfH-7,width:n.w+14,height:n.h+14,class:'vizio-selected-outline'}));
    for(const [dir,[dx,dy]] of Object.entries(dirs)){
-    g.append(sEl('rect',{x:n.x+dx*halfW-10,y:n.y+dy*halfH-10,width:20,height:20,rx:2,class:'vizio-handle','data-resize':n.id,'data-dir':dir}));
+    g.append(sEl('rect',{x:n.x+dx*halfW-Math.max(10,15/Math.max(zoom,.2)),y:n.y+dy*halfH-Math.max(10,15/Math.max(zoom,.2)),width:Math.max(20,30/Math.max(zoom,.2)),height:Math.max(20,30/Math.max(zoom,.2)),rx:2,class:'vizio-handle','data-resize':n.id,'data-dir':dir}));
    }
    for(const key of ['top','right','bottom','left']){
     const [px,py]=port(n,key);
-    const dist=27;const offsets={top:[0,-dist],right:[dist,0],bottom:[0,dist],left:[-dist,0]};
+    const dist=Math.max(27,34/Math.max(zoom,.2));const offsets={top:[0,-dist],right:[dist,0],bottom:[0,dist],left:[-dist,0]};
     const o=offsets[key];
-    g.append(sEl('circle',{cx:px+o[0],cy:py+o[1],r:11,class:'vizio-port','data-connect-port':key,'data-connect-node':n.id,'aria-label':'연결선 시작 '+key}));
+    g.append(sEl('circle',{cx:px+o[0],cy:py+o[1],r:Math.max(11,17/Math.max(zoom,.2)),class:'vizio-port','data-connect-port':key,'data-connect-node':n.id,'aria-label':'연결선 시작 '+key}));
     g.append(sEl('path',{d:polyPath([[px,py],[px+o[0]*.56,py+o[1]*.56]]),stroke:'#147b8d','stroke-width':2,fill:'none','pointer-events':'none'}));
    }
   }
@@ -383,10 +383,10 @@ function drawEditHandles(svg){
   if(edge){const pts=edgePath(edge),from=getNode(edge.from),to=getNode(edge.to);
    if(pts&&from&&to){
     const start=port(from,edge.fp),end=port(to,edge.tp);
-    g.append(makeVisioCircle({cx:start[0],cy:start[1],class:'vizio-end','data-end-role':'from','data-edge-id':edge.id},'#e8dfff',12));
+    g.append(makeVisioCircle({cx:start[0],cy:start[1],class:'vizio-end','data-end-role':'from','data-edge-id':edge.id},'#e8dfff',Math.max(12,18/Math.max(zoom,.2))));
     g.append(makeVisioCircle({cx:end[0],cy:end[1],class:'vizio-end','data-end-role':'to','data-edge-id':edge.id},'#e8dfff',12));
     const vb=edge.via||{x:(start[0]+end[0])/2,y:(start[1]+end[1])/2};
-    g.append(makeVisioCircle({cx:vb.x,cy:vb.y,class:'vizio-bend','data-bend':edge.id},'#fff5d5',13));
+    g.append(makeVisioCircle({cx:vb.x,cy:vb.y,class:'vizio-bend','data-bend':edge.id},'#fff5d5',Math.max(13,19/Math.max(zoom,.2))));
    }
   }
  }
@@ -467,6 +467,41 @@ zoomCanvas.addEventListener('pointerdown',visioPointerStart,{capture:true});
 zoomCanvas.addEventListener('pointermove',visioPointerMove,{capture:true});
 zoomCanvas.addEventListener('pointerup',visioPointerEnd,{capture:true});
 zoomCanvas.addEventListener('pointercancel',visioPointerEnd,{capture:true});
+
+
+/* v1.3 — reliable connector selection on touch screens */
+const edgePickerBlock=document.createElement('div');
+edgePickerBlock.style.cssText='padding:10px;border:1px solid #c4cee1;background:#f5f7fd;border-radius:8px;margin-bottom:14px;';
+edgePickerBlock.innerHTML='<label for="edgePicker" style="font-weight:700;display:block;margin-bottom:7px">연결선 선택 · 직접 편집</label>'+
+ '<select id="edgePicker" aria-label="편집할 연결선 선택" style="width:100%;height:46px;font-size:16px"><option value="">선을 터치하거나 여기서 선택</option></select>'+
+ '<p style="font-size:12px;margin:7px 0 0;color:#536177">선 선택 → 노란 조절점 이동 · 보라색 끝점 이동. 확대하면 편집이 쉽습니다.</p>';
+document.querySelector('aside').insertBefore(edgePickerBlock,helpPanel);
+const edgePicker=$('edgePicker');
+edgePicker.addEventListener('change',()=>{
+ const id=edgePicker.value;
+ selected.clear();edgeSelect=id||null;connecting=false;connectSource=null;
+ if(id){toast('연결선을 선택했습니다. 노란 점을 끌어 굴곡을 변경하세요.');}
+ updateUI();
+});
+const oldUpdateUIMobile=updateUI;
+updateUI=function(){
+ oldUpdateUIMobile();
+ const active=edgePicker.value;
+ edgePicker.replaceChildren(new Option('선을 터치하거나 여기서 선택',''));
+ for(let i=0;i<scene.edges.length;i++){
+  const e=scene.edges[i],a=getNode(e.from),b=getNode(e.to);
+  edgePicker.append(new Option((i+1)+'. '+(a?.title||e.from).slice(0,20)+' → '+(b?.title||e.to).slice(0,20),e.id));
+ }
+ edgePicker.value=edgeSelect||'';
+};
+const originalVisioEnd=visioPointerEnd;
+visioPointerEnd=function(evt){
+ if(visioDrag&&visioDrag.type==='new'){
+  // Ignore the original pointer capture target; elementFromPoint resolves the actual drop location.
+ }
+ originalVisioEnd(evt);
+};
+updateUI();
 
 </script>
 </body></html>
