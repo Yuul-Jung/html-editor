@@ -1324,6 +1324,75 @@ $('copySvgSource').onclick=async()=>{
 };
 
 
+
+/* v2.7: user-selectable named shape presets; no existing shape changes on choice alone. */
+const BOX_STYLE_PRESETS=Object.freeze({
+ navy:{name:'곤색 선 · 투명',textColor:'#172439',subTextColor:'#273e5e',
+       strokeColor:'#1F3A5F',fill:'none',fontMain:23,fontSub:18,strokeWidth:3.5},
+ mono:{name:'흑백 기본형',textColor:'#1b1b1b',subTextColor:'#424242',
+       strokeColor:'#242424',fill:'none',fontMain:22,fontSub:17,strokeWidth:3},
+ blue:{name:'하늘색 채움',textColor:'#163457',subTextColor:'#325477',
+       strokeColor:'#205184',fill:'#eaf3ff',fontMain:23,fontSub:18,strokeWidth:3},
+ mint:{name:'연녹색 채움',textColor:'#153e37',subTextColor:'#3b615b',
+       strokeColor:'#236a5c',fill:'#eaf8f1',fontMain:23,fontSub:17,strokeWidth:3},
+ wine:{name:'와인색 강조',textColor:'#541d2b',subTextColor:'#784450',
+       strokeColor:'#71304a',fill:'#fff2f4',fontMain:24,fontSub:18,strokeWidth:3.5},
+ dark:{name:'진한 곤색 채움',textColor:'#ffffff',subTextColor:'#dceaff',
+       strokeColor:'#102944',fill:'#1f3a5f',fontMain:23,fontSub:18,strokeWidth:3.5}
+});
+function applyPresetToNode(node,key){
+ const preset=BOX_STYLE_PRESETS[key]||BOX_STYLE_PRESETS.navy;
+ node.preset=BOX_STYLE_PRESETS[key]?key:'navy';
+ for(const property of ['textColor','subTextColor','strokeColor','fill','fontMain','fontSub','strokeWidth']){
+  node[property]=preset[property];
+ }
+ node.pad=12;
+ node.padY=10.67; // one point (~1.33 CSS px) less than previous 12px top/bottom
+ node.textAlign='center';
+ node.autoFit=true;
+}
+function selectedPreset(){
+ return BOX_STYLE_PRESETS[$('stylePresetSelect').value]||BOX_STYLE_PRESETS.navy;
+}
+function updateStylePreview(){
+ const p=selectedPreset(),sw=$('stylePresetSwatch');
+ sw.style.background=p.fill==='none'?'#ffffff':p.fill;
+ sw.style.color=p.textColor;
+ sw.style.borderColor=p.strokeColor;
+ sw.style.fontSize=Math.max(14,Math.round(p.fontMain*.72))+'px';
+ $('stylePresetDesc').textContent=p.name+
+   ' · 글자 '+p.fontMain+'/'+p.fontSub+'px · '+(p.fill==='none'?'채움 없음':'채움 적용')+
+   ' · 상하 여백 10.67px';
+ const def=scene.settings.defaultPreset||'navy';
+ $('stylePresetStatus').textContent='새 박스 기본: '+(BOX_STYLE_PRESETS[def]||BOX_STYLE_PRESETS.navy).name+
+   ' · 선택 박스는 「선택 박스에 적용」을 눌러 변경합니다.';
+}
+$('stylePresetSelect').addEventListener('change',updateStylePreview);
+$('applyStyleSelected').onclick=()=>{
+ if(mode!=='structured'){toast('구조화된 도면에서만 사용할 수 있습니다.');return;}
+ const targets=scene.nodes.filter(n=>selected.has(n.id));
+ if(!targets.length){toast('먼저 도형을 하나 이상 선택하세요.');return;}
+ const id=$('stylePresetSelect').value;
+ checkpoint();
+ for(const n of targets){
+  applyPresetToNode(n,id);
+  if(n.type==='rect')fitRectToText(n);
+ }
+ updateUI();toast(targets.length+'개 박스에 '+selectedPreset().name+' 스타일을 적용했습니다.');
+};
+$('makeStyleDefault').onclick=()=>{
+ if(mode!=='structured'){toast('구조화된 도면에서만 사용할 수 있습니다.');return;}
+ const id=$('stylePresetSelect').value;
+ if(!BOX_STYLE_PRESETS[id])return;
+ checkpoint();scene.settings.defaultPreset=id;
+ updateUI();toast('새로 추가할 박스의 기본 스타일을 '+selectedPreset().name+'으로 설정했습니다.');
+};
+const beforePresetUpdate=updateUI;
+updateUI=function(){beforePresetUpdate();updateStylePreview()};
+const beforePresetShow=showProps;
+showProps=function(){beforePresetShow();updateStylePreview()};
+updateStylePreview();
+
 /* v2.6 context-sensitive properties. Every control persists in scene JSON. */
 const cssColor=(value,fallback)=>/^#[0-9a-fA-F]{6}$/.test(value||'')?value:fallback;
 const setQuickVisibility=(id,yes)=>{$(id).hidden=!yes};
