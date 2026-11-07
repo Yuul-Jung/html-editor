@@ -167,7 +167,7 @@ function baseScene(){
   ];
   const edge=(id,from,to,fp,tp,label='',route='auto')=>({id,from,to,fp,tp,label,route});
   const edges=[edge('e1','start','declare','bottom','top'),edge('e2','declare','intro','bottom','top'),edge('e3','intro','status','bottom','top'),edge('e4','status','receive','bottom','top'),edge('e5','receive','d1','bottom','top'),edge('e6','d1','cmd','right','left','예'),edge('e7','d1','d2','bottom','top','아니오'),edge('e8','d2','err1','right','left','예'),edge('e9','d2','d3','bottom','top','아니오'),edge('e10','d3','err2','right','left','예'),edge('e11','d3','repeat','bottom','top','아니오'),edge('e12','cmd','repeat','right','right','','loopRight'),edge('e13','err1','repeat','right','right','','loopRight'),edge('e14','err2','repeat','right','right','','loopRight'),edge('e15','repeat','receive','left','left','반복','loopLeft')];
-  return {version:2,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'center',autoFit:true},subtitle:{x:725,y:87,w:950,h:42,size:20,align:'center',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.4,gap:38,pad:12},nodes,edges};
+  return {version:2,headings:{title:{x:725,y:48,w:1000,h:58,size:33,align:'center',autoFit:true},subtitle:{x:725,y:98,w:950,h:38,size:20,align:'center',autoFit:true}},title:'P2-01 · main() 전체 실행 흐름',subtitle:'블로킹 UART 수신 · 문자열 명령 분류 · 반복 실행',width:1450,height:1640,settings:{fontMain:23,fontSub:18,stroke:3.4,gap:38,pad:12},nodes,edges};
 }
 let activeHeading=null,headingDrag=null;
 let scene=baseScene(),mode='structured',rawDoc=null,rawSelected=null,selected=new Set(),edgeSelect=null,connecting=false,connectSource=null,zoom=0.7,history=[],future=[],drag=null,historyLast=0;
@@ -589,7 +589,7 @@ function getHeading(key){
  if(!scene.headings)scene.headings={};
  if(!scene.headings[key]){
   const main=key==='title';
-  scene.headings[key]={x:scene.width/2,y:main?48:87,w:main?1000:950,h:main?58:42,size:main?33:20,align:'center',autoFit:true};
+  scene.headings[key]={x:scene.width/2,y:main?48:98,w:main?1000:950,h:main?58:38,size:main?33:20,align:'center',autoFit:true};
  }
  return scene.headings[key];
 }
@@ -689,6 +689,34 @@ for(const id of ['titleInput','subtitleInput']){
   render();
  });
 }
+
+
+/* Accessibility: keyboard nudge and double-click text editing */
+$('canvas').addEventListener('dblclick',evt=>{
+ const hit=evt.target.closest?.('[data-heading]');
+ if(!hit||mode!=='structured')return;
+ evt.stopImmediatePropagation();evt.preventDefault();
+ const key=hit.dataset.heading;
+ const value=prompt(key==='title'?'제목 수정':'부제 수정',scene[key]);
+ if(value===null)return;
+ checkpoint();scene[key]=value;
+ if(getHeading(key).autoFit!==false)fitHeading(key);
+ activeHeading=key;selected.clear();edgeSelect=null;updateUI();
+},{capture:true});
+document.addEventListener('keydown',evt=>{
+ if(mode!=='structured'||evt.ctrlKey||evt.metaKey||evt.altKey)return;
+ if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)||document.activeElement?.isContentEditable)return;
+ if(evt.key==='Escape'&&activeHeading){activeHeading=null;updateUI();return}
+ if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(evt.key))return;
+ const delta=evt.shiftKey?10:1;
+ const dx=evt.key==='ArrowLeft'?-delta:evt.key==='ArrowRight'?delta:0;
+ const dy=evt.key==='ArrowUp'?-delta:evt.key==='ArrowDown'?delta:0;
+ if(!activeHeading&&!selected.size)return;
+ evt.preventDefault();checkpoint();
+ if(activeHeading){const h=getHeading(activeHeading);h.x+=dx;h.y+=dy}
+ else for(const id of selected){const n=getNode(id);if(n){n.x+=dx;n.y+=dy}}
+ updateUI();
+});
 
 </script>
 </body></html>
