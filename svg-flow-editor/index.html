@@ -261,7 +261,7 @@ body:not(.show-extra-tools) .advanced-tool{display:none!important}
 </style>
 </head>
 <body>
-<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v2.9</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
+<header><div><h1>SoC SVG 플로우차트 편집기 <span class="badge">v3.0</span></h1><div class="sub">01장 예제 내장 · 코드명 유지 · 마름모 꼭짓점 연결 · SVG 원본 저장</div></div><div id="modeLabel">편집 모드: 노드</div></header>
 <div class="toolbar">
 <label id="chapterSelectLabel" class="chapter-selector">제2부 도면
 <select id="chapterSelect" aria-label="제2부 장별 플로우차트 선택">
@@ -277,6 +277,12 @@ body:not(.show-extra-tools) .advanced-tool{display:none!important}
 <option value="10">10장 · 안전 캡스톤</option>
 </select></label>
 <button type="button" id="loadChapter" class="primary">선택 장 열기</button>
+<span class="sep"></span><label class="chapter-selector" for="pagePicker">페이지
+<select id="pagePicker" aria-label="플로우차트 페이지 선택"></select></label>
+<button type="button" id="previousPage">◀ 이전</button><button type="button" id="nextPage">다음 ▶</button>
+<button type="button" id="addPage">+ 새 페이지</button>
+<button type="button" id="duplicatePage">페이지 복제</button><button type="button" id="deletePage">페이지 삭제</button>
+<button type="button" id="addPageNode">+ 페이지 연결 노드</button>
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="marqueeBtn" type="button" aria-pressed="false">▣ 영역 선택</button><button id="selectAllBoxes" type="button">전체 박스</button><button id="clearBoxSelection" type="button">선택 해제</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
 <span class="sep"></span><button id="fit">화면 맞춤</button><button id="zoomOut">－</button><span id="zoomText">100%</span><button id="zoomIn">＋</button>
@@ -429,7 +435,7 @@ body:not(.show-extra-tools) .advanced-tool{display:none!important}
  <div class="field"><label>둘째 줄 · 설명</label><textarea id="nodeSub" rows="2"></textarea></div>
  <div class="twocol"><div class="field"><label>X (중심)</label><input id="nodeX" type="number" step="5"></div><div class="field"><label>Y (중심)</label><input id="nodeY" type="number" step="5"></div></div>
  <div class="twocol"><div class="field"><label>가로(px)</label><input id="nodeW" type="number" min="120" max="1800" step="10"></div><div class="field"><label>세로(px)</label><input id="nodeH" type="number" min="50" max="800" step="10"></div></div>
- <div class="twocol"><div class="field"><label>도형 종류</label><select id="nodeType"><option value="rect">직사각형</option><option value="diamond">판단 마름모</option></select></div><div class="field"><label>배경색(선택)</label><input id="nodeFill" type="color"></div></div><label class="auto-fit-toggle"><input id="nodeTransparent" type="checkbox" checked> 투명 배경(기본값)</label>
+ <div class="twocol"><div class="field"><label>도형 종류</label><select id="nodeType"><option value="rect">직사각형</option><option value="diamond">판단 마름모</option><option value="page">페이지 연결</option></select></div><div class="field"><label>배경색(선택)</label><input id="nodeFill" type="color"></div></div><label class="auto-fit-toggle"><input id="nodeTransparent" type="checkbox" checked> 투명 배경(기본값)</label>
  <div class="field auto-fit-field"><label class="auto-fit-toggle"><input id="autoFitText" type="checkbox" checked> 글자 수정 시 직사각형 자동 맞춤</label><button type="button" id="fitSelectedText">선택한 직사각형 글자에 맞춤</button></div>
  <div class="note">박스를 드래그하면 연결선이 자동으로 따라갑니다. 판단 마름모는 꼭짓점에서만 분기합니다.</div>
 </div>
@@ -476,6 +482,7 @@ let activeHeading=null,headingDrag=null;
 let marqueeMode=false,marquee=null,spacePanHeld=false,editorGridVisible=false;
 let scene=baseScene(),mode='structured',rawDoc=null,rawSelected=null,selected=new Set(),edgeSelect=null,connecting=false,connectSource=null,zoom=0.8,history=[],future=[],drag=null,historyLast=0;
 const esc=s=>String(s??'');
+let pageBook=[JSON.parse(JSON.stringify(scene))],pageIndex=0;
 function cloneScene(){return JSON.parse(JSON.stringify(scene))}
 function checkpoint(){if(mode!=='structured')return;history.push(cloneScene());if(history.length>70)history.shift();future=[];updateUndo()}
 function updateUndo(){$('undo').disabled=!history.length;$('redo').disabled=!future.length}
@@ -640,7 +647,7 @@ $('canvas').addEventListener('pointermove',evt=>{if(!drag)return;const p=posFrom
  const dx=p.x-drag.point.x,dy=p.y-drag.point.y;if(Math.abs(dx)+Math.abs(dy)<2&&!drag.moved)return;
  if(!drag.history){checkpoint();drag.history=true;}for(const a of drag.positions){const n=getNode(a.id);if(n){n.x=Math.round((a.x+dx)/5)*5;n.y=Math.round((a.y+dy)/5)*5;}}drag.moved=true;render();evt.preventDefault()});
 $('canvas').addEventListener('pointerup',evt=>{if(drag){drag=null;showProps();}try{$('canvas').releasePointerCapture(evt.pointerId)}catch{}});
-$('canvas').addEventListener('dblclick',evt=>{if(mode==='raw'){if(rawSelected&&rawSelected.tagName?.toLowerCase()==='text'){let v=prompt('글자 수정',rawSelected.textContent);if(v!==null){rawSelected.textContent=v;$('rawLabel').value=v;}}return;}let g=evt.target.closest('[data-node]');if(!g)return;let n=getNode(g.dataset.node);if(!n)return;let val=prompt('박스 첫 줄 글자 수정',n.title);if(val!==null){checkpoint();n.title=val;updateUI();}});
+$('canvas').addEventListener('dblclick',evt=>{if(mode==='raw'){if(rawSelected&&rawSelected.tagName?.toLowerCase()==='text'){let v=prompt('글자 수정',rawSelected.textContent);if(v!==null){rawSelected.textContent=v;$('rawLabel').value=v;}}return;}let g=evt.target.closest('[data-node]');if(!g)return;let n=getNode(g.dataset.node);if(!n)return;if(n.type==='page'&&Number.isInteger(n.targetPage)){goToPage(n.targetPage);return;}let val=prompt('박스 첫 줄 글자 수정',n.title);if(val!==null){checkpoint();n.title=val;updateUI();}});
 $('rawLabel').addEventListener('change',()=>{if(mode==='raw'&&rawSelected&&rawSelected.tagName?.toLowerCase()==='text'){rawSelected.textContent=$('rawLabel').value}});
 function uid(prefix){return prefix+Date.now().toString(36)+Math.floor(Math.random()*999)}
 function addNode(type){if(mode!=='structured'){toast('외부 SVG는 그룹 이동 편집 모드입니다. JSON 도면에서 새 노드를 추가할 수 있습니다.');return;}checkpoint();const id=uid('n');const n={id,type,x:scene.width/2,y:scene.height-135,w:type==='diamond'?365:465,h:type==='diamond'?140:96,title:type==='diamond'?'조건인가?':'새 처리 단계',sub:type==='diamond'?'예 / 아니오 분기':'설명을 입력하세요',fill:'none'};
@@ -658,13 +665,13 @@ $('centerTitle').onclick=()=>{if(mode!=='structured')return;checkpoint();let all
 $('autoLayout').onclick=()=>{if(mode!=='structured')return;checkpoint();let main=scene.nodes.filter(n=>n.x<scene.width*.58).sort((a,b)=>a.y-b.y),side=scene.nodes.filter(n=>n.x>=scene.width*.58).sort((a,b)=>a.y-b.y);let maxW=Math.max(...main.map(n=>n.w),500);let mx=scene.width*.43,rx=scene.width*.77;let y=158;for(const n of main){n.x=mx;n.y=y;y+=n.h+scene.settings.gap;}for(const n of side){const src=scene.edges.find(e=>e.to===n.id&&e.fp==='right');const an=src&&getNode(src.from);n.x=rx;if(an)n.y=an.y;}scene.height=Math.max(scene.height,y+80);updateUI();toast('수직 배치를 적용했습니다. 연결선도 자동 재계산됩니다.')};
 $('alignX').onclick=()=>{if(mode!=='structured'||selected.size<2){toast('Shift+클릭으로 2개 이상 선택하세요.');return;}checkpoint();let list=[...selected].map(getNode);let x=list.reduce((a,n)=>a+n.x,0)/list.length;list.forEach(n=>n.x=Math.round(x));updateUI()};
 $('distributeY').onclick=()=>{if(mode!=='structured'||selected.size<3){toast('세로 정렬은 노드 3개 이상 선택하세요.');return;}checkpoint();const ns=[...selected].map(getNode).sort((a,b)=>a.y-b.y);let start=ns[0].y,end=ns.at(-1).y;ns.forEach((n,i)=>n.y=Math.round(start+(end-start)*i/(ns.length-1)));updateUI()};
-$('resetScene').onclick=()=>{if(!confirm('현재 도면을 초기화할까요? 필요하면 먼저 JSON으로 저장하세요.'))return;scene=baseScene();history=[];future=[];selected.clear();edgeSelect=null;mode='structured';rawDoc=null;$('modeLabel').textContent='편집 모드: 노드';updateUI();fitCanvas();toast('01장 기본 예제를 불러왔습니다.')};
+$('resetScene').onclick=()=>{if(!confirm('현재 도면을 초기화할까요? 필요하면 먼저 JSON으로 저장하세요.'))return;scene=baseScene();pageBook=[JSON.parse(JSON.stringify(scene))];pageIndex=0;refreshPagePicker();history=[];future=[];selected.clear();edgeSelect=null;mode='structured';rawDoc=null;$('modeLabel').textContent='편집 모드: 노드';updateUI();fitCanvas();toast('01장 기본 예제를 불러왔습니다.')};
 function svgString(){const s=$('canvas');const copy=s.cloneNode(true);copy.querySelectorAll('#vizio-overlays,.edge-hit,#vizio-preview,#rubberBand,#editor-grid').forEach(el=>el.remove());copy.querySelectorAll('.selected').forEach(g=>g.classList.remove('selected'));copy.querySelectorAll('path').forEach(p=>{if(p.closest('.edge')){const edge=p.closest('[data-edge]');const model=edge&&scene.edges.find(e=>e.id===edge.dataset.edge);p.setAttribute('stroke',model?.strokeColor||'#5A1E1E');p.setAttribute('stroke-width',String(model?.strokeWidth||Math.max(3.5,scene.settings.stroke)))}});copy.querySelectorAll('.node-shape').forEach(p=>{p.removeAttribute('filter');const g=p.closest('[data-node]');const node=g&&getNode(g.dataset.node);p.setAttribute('stroke',node?.strokeColor||'#1F3A5F');p.setAttribute('stroke-width',String(node?.strokeWidth||scene.settings.stroke))});copy.removeAttribute('style');copy.setAttribute('xmlns',NS);copy.setAttribute('version','1.1');copy.setAttribute('width',s.getAttribute('width'));copy.setAttribute('height',s.getAttribute('height'));return '<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(copy)}
 function download(text,type,name){const blob=new Blob([text],{type}),a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-$('saveSVG').onclick=()=>{download(svgString(),'image/svg+xml;charset=utf-8',chapterFileStem()+'_Main_Flow_edited.svg');toast('SVG 파일을 저장했습니다.')};
-$('saveJSON').onclick=()=>{if(mode!=='structured'){toast('외부 SVG는 SVG로 저장해 주세요.');return;}download(JSON.stringify(scene,null,2),'application/json;charset=utf-8',chapterFileStem()+'_Flow_Project.json');toast('편집용 JSON 작업 파일 저장')};
-$('savePNG').onclick=()=>{const xml=svgString();const u=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(im,0,0);URL.revokeObjectURL(u);c.toBlob(b=>{if(!b){toast('PNG 변환 실패');return;}const v=URL.createObjectURL(b),a=document.createElement('a');a.href=v;a.download=chapterFileStem()+'_Main_Flow_edited.png';a.click();setTimeout(()=>URL.revokeObjectURL(v),1000);toast('PNG 파일을 저장했습니다.')},'image/png')};im.onerror=()=>{URL.revokeObjectURL(u);toast('PNG 변환 실패: 원본 SVG 속성을 확인해 주세요.')};im.src=u};
-$('loadJSON').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!Array.isArray(x.nodes)||!Array.isArray(x.edges)||!x.settings||typeof x.title!=='string')throw Error('지원하지 않는 구조');scene=x;mode='structured';rawDoc=null;history=[];future=[];selected.clear();edgeSelect=null;$('modeLabel').textContent='편집 모드: 노드';updateUI();fitCanvas();$('fileStatus').textContent=f.name+' 불러오기 완료';}catch(err){toast('JSON 불러오기 실패: '+err.message)}e.target.value=''};
+$('saveSVG').onclick=()=>{download(svgString(),'image/svg+xml;charset=utf-8',chapterFileStem()+'_Page'+String(pageIndex+1).padStart(2,'0')+'_Flow.svg');toast('SVG 파일을 저장했습니다.')};
+$('saveJSON').onclick=()=>{if(mode!=='structured'){toast('외부 SVG는 SVG로 저장해 주세요.');return;}download(JSON.stringify(exportPageDocument(),null,2),'application/json;charset=utf-8',chapterFileStem()+'_Flow_Project.json');toast('편집용 JSON 작업 파일 저장')};
+$('savePNG').onclick=()=>{const xml=svgString();const u=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.naturalWidth;c.height=im.naturalHeight;const ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(im,0,0);URL.revokeObjectURL(u);c.toBlob(b=>{if(!b){toast('PNG 변환 실패');return;}const v=URL.createObjectURL(b),a=document.createElement('a');a.href=v;a.download=chapterFileStem()+'_Page'+String(pageIndex+1).padStart(2,'0')+'_Flow.png';a.click();setTimeout(()=>URL.revokeObjectURL(v),1000);toast('PNG 파일을 저장했습니다.')},'image/png')};im.onerror=()=>{URL.revokeObjectURL(u);toast('PNG 변환 실패: 원본 SVG 속성을 확인해 주세요.')};im.src=u};
+$('loadJSON').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const original=JSON.parse(await f.text());const x=Array.isArray(original.pages)?validatePageDocument(original).pages[0]:original;if(!Array.isArray(x.nodes)||!Array.isArray(x.edges)||!x.settings||typeof x.title!=='string')throw Error('지원하지 않는 구조');scene=x;pageBook=Array.isArray(original.pages)?original.pages.map(p=>JSON.parse(JSON.stringify(p))):[JSON.parse(JSON.stringify(x))];pageIndex=0;refreshPagePicker();mode='structured';rawDoc=null;history=[];future=[];selected.clear();edgeSelect=null;$('modeLabel').textContent='편집 모드: 노드';updateUI();fitCanvas();$('fileStatus').textContent=f.name+' 불러오기 완료';}catch(err){toast('JSON 불러오기 실패: '+err.message)}e.target.value=''};
 $('loadSVG').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const txt=await f.text();const p=new DOMParser().parseFromString(txt,'image/svg+xml');if(p.querySelector('parsererror')||p.documentElement.localName!=='svg')throw Error('유효한 SVG가 아님');for(const el of Array.from(p.querySelectorAll('*'))){if(['script','foreignObject','iframe','image','use','a','style','animate','animateTransform','set'].includes(el.localName)){el.remove();continue;}for(const attr of Array.from(el.attributes)){if(attr.name.startsWith('on')||/href|url\(/i.test(attr.name+' '+attr.value))el.removeAttribute(attr.name)}}mode='raw';rawDoc=p;rawSelected=null;selected.clear();edgeSelect=null;$('modeLabel').textContent='편집 모드: 외부 SVG';renderRaw();showProps();fitCanvas();$('fileStatus').textContent=f.name+' 원본 요소 편집 모드';toast('SVG를 불러왔습니다. 도형 선택·이동·텍스트 수정·재저장 가능')}catch(err){toast('SVG 불러오기 실패: '+err.message)}e.target.value=''};
 window.addEventListener('keydown',e=>{const t=e.target?.tagName?.toLowerCase();if(['input','textarea','select'].includes(t))return;if(e.key==='Delete'||e.key==='Backspace'){deleteSelected();e.preventDefault()}else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo()}else if(mode==='structured'&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)&&selected.size){checkpoint();let dx=e.key==='ArrowRight'?5:e.key==='ArrowLeft'?-5:0,dy=e.key==='ArrowDown'?5:e.key==='ArrowUp'?-5:0;[...selected].map(getNode).forEach(n=>{n.x+=dx;n.y+=dy});render();showProps();e.preventDefault()}});
 window.addEventListener('resize',()=>{if(window.innerWidth<870&&zoom>0.8)fitCanvas()});
@@ -1797,7 +1804,7 @@ $('loadChapter').onclick=async()=>{
    if(!response.ok)throw Error('GitHub Pages에서 장별 파일을 찾을 수 없습니다 (HTTP '+response.status+')');
    next=validateChapterScene(await response.json());
   }
-  scene=next;mode='structured';rawDoc=null;
+  scene=next;pageBook=[JSON.parse(JSON.stringify(scene))];pageIndex=0;refreshPagePicker();mode='structured';rawDoc=null;
   history=[];future=[];selected.clear();edgeSelect=null;activeHeading=null;
   $('modeLabel').textContent='편집 모드: 노드 · P2-'+num;
   updateUI();fitCanvas();
@@ -1823,6 +1830,102 @@ updateUI=function(){
   // The dropdown remains an explicit target selection, not forced to track edits.
  }
 };
+
+
+/* v3.0: legacy single-page JSON remains supported; multi-page JSON uses pages[]. */
+function clonePage(p){return JSON.parse(JSON.stringify(p));}
+function capturePage(){if(mode==='structured')pageBook[pageIndex]=clonePage(scene);}
+function exportPageDocument(){
+ capturePage();
+ if(pageBook.length===1)return clonePage(pageBook[0]);
+ return {version:4,format:'soc-flow-pages',chapter:chapterFileStem().replace('_','-'),
+         activePage:pageIndex,pages:pageBook.map(clonePage)};
+}
+function validatePageDocument(data){
+ if(!data||data.format!=='soc-flow-pages'||!Array.isArray(data.pages)||
+    data.pages.length<1||data.pages.length>40)throw Error('다중 페이지 JSON 형식이 아닙니다.');
+ data.pages.forEach(p=>validateChapterScene(p));
+ data.pages.forEach((p,i)=>p.nodes.forEach(n=>{
+  if(n.type==='page'&&(!Number.isInteger(n.targetPage)||
+      n.targetPage<0||n.targetPage>=data.pages.length))throw Error((i+1)+'페이지에 잘못된 이동 노드가 있습니다.');
+ }));
+ return data;
+}
+function refreshPagePicker(){
+ const picker=$('pagePicker');if(!picker)return;
+ const pages=pageBook.length;
+ picker.replaceChildren(...pageBook.map((p,i)=>new Option((i+1)+' / '+pages+' · '+(p.pageTitle||'페이지 '+(i+1)),String(i))));
+ picker.value=String(pageIndex);
+ $('previousPage').disabled=pageIndex===0;
+ $('nextPage').disabled=pageIndex>=pages-1;
+ $('deletePage').disabled=pages===1;
+}
+function goToPage(i){
+ if(mode!=='structured'){toast('외부 SVG 편집 모드에서는 페이지를 전환할 수 없습니다.');return;}
+ if(!Number.isInteger(i)||i<0||i>=pageBook.length){toast('존재하지 않는 페이지입니다.');return;}
+ if(i===pageIndex)return;
+ capturePage();pageIndex=i;scene=clonePage(pageBook[i]);
+ history=[];future=[];selected.clear();edgeSelect=null;activeHeading=null;
+ refreshPagePicker();updateUI();fitCanvas();
+ $('fileStatus').textContent=chapterFileStem()+' · '+(i+1)+' / '+pageBook.length+' 페이지';
+ toast((i+1)+'페이지로 이동했습니다.');
+}
+function appendPage(copyCurrent=false){
+ if(mode!=='structured'){toast('구조화 도면에서만 페이지를 추가할 수 있습니다.');return;}
+ if(pageBook.length>=40){toast('최대 40페이지까지 추가할 수 있습니다.');return;}
+ capturePage();
+ const index=pageBook.length;
+ const p=copyCurrent?clonePage(scene):{
+   version:3,chapter:scene.chapter||chapterFileStem().replace('_','-'),
+   verification:scene.verification||'DESIGN_DRAFT_NOT_CODE_VERIFIED',
+   title:scene.title,subtitle:'페이지 '+(index+1)+' · 편집용 새 도면',
+   width:scene.width,height:Math.max(640,Math.min(scene.height,1000)),
+   settings:clonePage(scene.settings),headings:clonePage(scene.headings||{}),
+   nodes:[],edges:[],pageTitle:'페이지 '+(index+1)
+ };
+ if(copyCurrent)p.pageTitle='페이지 '+(index+1)+' (복제)';
+ pageBook.push(p);goToPage(index);
+}
+function insertPageLink(target){
+ if(mode!=='structured'){toast('구조화 도면에서만 페이지 노드를 만들 수 있습니다.');return;}
+ if(pageBook.length<2){toast('먼저 새 페이지를 추가하세요.');return;}
+ if(!Number.isInteger(target)||target<0||target>=pageBook.length||target===pageIndex){
+  toast('다른 연결 대상 페이지를 선택하세요.');return;
+ }
+ checkpoint();
+ const n={id:uid('page'),type:'page',targetPage:target,
+  x:Math.round(scene.width*.52),y:Math.max(180,scene.height-150),
+  w:480,h:92,title:'↪ '+(target+1)+'페이지로 이동',
+  sub:'페이지 연결 노드 · 두 번 눌러 이동',fill:'none'};
+ applyPresetToNode(n,scene.settings.defaultPreset||'navy');
+ scene.nodes.push(n);selected=new Set([n.id]);edgeSelect=null;updateUI();
+ toast('페이지 연결 노드 추가 완료');
+}
+$('pagePicker').addEventListener('change',e=>goToPage(Number(e.target.value)));
+$('previousPage').onclick=()=>goToPage(pageIndex-1);
+$('nextPage').onclick=()=>goToPage(pageIndex+1);
+$('addPage').onclick=()=>appendPage(false);
+$('duplicatePage').onclick=()=>appendPage(true);
+$('addPageNode').onclick=()=>{
+ if(pageBook.length<2){toast('먼저 새 페이지를 추가하세요.');return;}
+ const suggestion=pageIndex+1<pageBook.length?pageIndex+2:1;
+ const value=prompt('연결할 페이지 번호 (1~'+pageBook.length+')',String(suggestion));
+ if(value!==null)insertPageLink(Number(value)-1);
+};
+$('deletePage').onclick=()=>{
+ if(pageBook.length<2)return;
+ if(!confirm((pageIndex+1)+'페이지와 그 노드를 삭제할까요?'))return;
+ capturePage();const removed=pageIndex;pageBook.splice(removed,1);
+ pageBook.forEach(p=>{
+   p.nodes=p.nodes.filter(n=>!(n.type==='page'&&n.targetPage===removed));
+   p.nodes.forEach(n=>{if(n.type==='page'&&n.targetPage>removed)n.targetPage--;});
+   const ids=new Set(p.nodes.map(n=>n.id));p.edges=p.edges.filter(e=>ids.has(e.from)&&ids.has(e.to));
+ });
+ pageIndex=Math.min(removed,pageBook.length-1);scene=clonePage(pageBook[pageIndex]);
+ history=[];future=[];selected.clear();edgeSelect=null;activeHeading=null;
+ refreshPagePicker();updateUI();fitCanvas();toast('페이지 삭제 완료');
+};
+refreshPagePicker();
 
 </script>
 </body></html>
