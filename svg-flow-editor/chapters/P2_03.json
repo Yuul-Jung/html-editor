@@ -4,7 +4,7 @@
   "verification": "DESIGN_DRAFT_NOT_CODE_VERIFIED",
   "title": "P2-03 · 버튼 입력과 인터럽트",
   "subtitle": "BTNU/BTND/BTNL/BTNR · 짧게/길게 · AXI IRQ · 설계 개념도(코드·보드 미검증)",
-  "width": 1500,
+  "width": 1755,
   "height": 1190,
   "headings": {
     "title": {
