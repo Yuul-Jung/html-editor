@@ -1800,11 +1800,14 @@ $('loadChapter').onclick=async()=>{
   if(num==='01')next=baseScene();
   else{
    const url='./chapters/P2_'+num+'.json';
-   const response=await fetch(url,{cache:'no-cache'});
+   const pagesResponse=await fetch('./chapters/P2_'+num+'_pages.json',{cache:'no-cache'});
+   const response=pagesResponse.ok?pagesResponse:await fetch(url,{cache:'no-cache'});
    if(!response.ok)throw Error('GitHub Pages에서 장별 파일을 찾을 수 없습니다 (HTTP '+response.status+')');
-   next=validateChapterScene(await response.json());
+   const loaded=await response.json();
+   if(Array.isArray(loaded.pages)){validatePageDocument(loaded);next=loaded.pages[0];pageBook=loaded.pages.map(clonePage);}
+   else{next=validateChapterScene(loaded);pageBook=[clonePage(next)];}
   }
-  scene=next;pageBook=[JSON.parse(JSON.stringify(scene))];pageIndex=0;refreshPagePicker();mode='structured';rawDoc=null;
+  scene=next;if(num==='01')pageBook=[clonePage(scene)];pageIndex=0;refreshPagePicker();mode='structured';rawDoc=null;
   history=[];future=[];selected.clear();edgeSelect=null;activeHeading=null;
   $('modeLabel').textContent='편집 모드: 노드 · P2-'+num;
   updateUI();fitCanvas();
