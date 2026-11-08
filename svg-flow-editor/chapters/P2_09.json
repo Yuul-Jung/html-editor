@@ -4,7 +4,7 @@
   "verification": "DESIGN_DRAFT_NOT_CODE_VERIFIED",
   "title": "P2-09 · 자동·수동 모드 통합",
   "subtitle": "MODE AUTO/MANUAL · UART/타이머/버튼 IRQ · 설계 개념도(코드·보드 미검증)",
-  "width": 1500,
+  "width": 1755,
   "height": 1190,
   "headings": {
     "title": {
@@ -44,7 +44,7 @@
       "w": 490,
       "h": 78,
       "title": "P2-09 실습 시작",
-      "sub": "기존 SoC 기능 보존",
+      "sub": "기존 기능 유지 목표 · 회귀 미검증",
       "pad": 12,
       "padY": 10.67,
       "fontMain": 23,

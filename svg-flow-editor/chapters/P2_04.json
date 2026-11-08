@@ -4,7 +4,7 @@
   "verification": "DESIGN_DRAFT_NOT_CODE_VERIFIED",
   "title": "P2-04 · PWM 밝기 제어",
   "subtitle": "LED1 PWM 0/25/50/100 · 기존 기능 누적 · 설계 개념도(코드·보드 미검증)",
-  "width": 1500,
+  "width": 1755,
   "height": 1190,
   "headings": {
     "title": {
@@ -44,7 +44,7 @@
       "w": 490,
       "h": 78,
       "title": "P2-04 실습 시작",
-      "sub": "기존 SoC 기능 보존",
+      "sub": "기존 기능 유지 목표 · 회귀 미검증",
       "pad": 12,
       "padY": 10.67,
       "fontMain": 23,
