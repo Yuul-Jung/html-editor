@@ -731,7 +731,8 @@
           "strokeColor": "#5A1E1E",
           "strokeWidth": 3.5,
           "arrowSize": 16,
-          "labelFont": 17
+          "labelFont": 17,
+          "laneX": 1820
         },
         {
           "id": "f10",
@@ -744,7 +745,8 @@
           "strokeColor": "#5A1E1E",
           "strokeWidth": 3.5,
           "arrowSize": 16,
-          "labelFont": 17
+          "labelFont": 17,
+          "laneX": 1900
         }
       ]
     }
