@@ -282,7 +282,7 @@ body:not(.show-extra-tools) .advanced-tool{display:none!important}
 <button type="button" id="previousPage">◀ 이전</button><button type="button" id="nextPage">다음 ▶</button>
 <button type="button" id="addPage">+ 새 페이지</button>
 <button type="button" id="duplicatePage">페이지 복제</button><button type="button" id="deletePage">페이지 삭제</button>
-<button type="button" id="addPageNode">+ 페이지 연결 노드</button>
+<button type="button" id="addPageNode">+ 페이지 연결 노드</button><button type="button" id="followPageNode">선택 연결 이동</button><button type="button" id="renamePage">페이지 이름</button>
 <button class="primary" id="addRect">+ 직사각형</button><button id="addDiamond">+ 판단 마름모</button><button id="addEdge">+ 연결선</button><button id="marqueeBtn" type="button" aria-pressed="false">▣ 영역 선택</button><button id="selectAllBoxes" type="button">전체 박스</button><button id="clearBoxSelection" type="button">선택 해제</button><button id="delete">선택 삭제</button>
 <span class="sep"></span><button id="undo">↶ 실행 취소</button><button id="redo">↷ 다시 실행</button>
 <span class="sep"></span><button id="fit">화면 맞춤</button><button id="zoomOut">－</button><span id="zoomText">100%</span><button id="zoomIn">＋</button>
@@ -1862,6 +1862,8 @@ function refreshPagePicker(){
  $('previousPage').disabled=pageIndex===0;
  $('nextPage').disabled=pageIndex>=pages-1;
  $('deletePage').disabled=pages===1;
+ const link=mode==='structured'&&selected.size===1?getNode([...selected][0]):null;
+ $('followPageNode').disabled=!(link&&link.type==='page'&&Number.isInteger(link.targetPage));
 }
 function goToPage(i){
  if(mode!=='structured'){toast('외부 SVG 편집 모드에서는 페이지를 전환할 수 없습니다.');return;}
@@ -1905,6 +1907,17 @@ function insertPageLink(target){
  toast('페이지 연결 노드 추가 완료');
 }
 $('pagePicker').addEventListener('change',e=>goToPage(Number(e.target.value)));
+$('followPageNode').onclick=()=>{
+ const node=selected.size===1?getNode([...selected][0]):null;
+ if(node?.type==='page')goToPage(node.targetPage);
+};
+$('renamePage').onclick=()=>{
+ if(mode!=='structured')return;
+ const name=prompt('현재 페이지 이름',scene.pageTitle||'페이지 '+(pageIndex+1));
+ if(name===null)return;
+ scene.pageTitle=String(name).trim().slice(0,55)||'페이지 '+(pageIndex+1);
+ capturePage();refreshPagePicker();toast('페이지 이름 변경 완료');
+};
 $('previousPage').onclick=()=>goToPage(pageIndex-1);
 $('nextPage').onclick=()=>goToPage(pageIndex+1);
 $('addPage').onclick=()=>appendPage(false);
@@ -1929,6 +1942,8 @@ $('deletePage').onclick=()=>{
  refreshPagePicker();updateUI();fitCanvas();toast('페이지 삭제 완료');
 };
 refreshPagePicker();
+const previousPageUI=updateUI;
+updateUI=function(){previousPageUI();refreshPagePicker();};
 
 </script>
 </body></html>
